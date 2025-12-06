@@ -15,18 +15,57 @@
             display: block;
         }
         
-        /* New Crosshair Style */
+        /* New Lobby Screen Styles */
+        #lobby-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: sans-serif;
+            z-index: 100; /* Ensure it's on top */
+        }
+
+        #lobby-screen h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #ff9900;
+        }
+
+        #play-button {
+            padding: 15px 40px;
+            font-size: 1.5em;
+            cursor: pointer;
+            background-color: #00aa00;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            transition: background-color 0.2s;
+        }
+
+        #play-button:hover {
+            background-color: #008800;
+        }
+
+        /* Crosshair Style */
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             width: 10px;
             height: 10px;
-            border: 2px solid rgba(255, 255, 255, 0.8); /* White border */
-            border-radius: 50%; /* Circle shape */
-            transform: translate(-50%, -50%); /* Center it perfectly */
-            pointer-events: none; /* Do not block clicks on the canvas */
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%; 
+            transform: translate(-50%, -50%); 
+            pointer-events: none; 
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            display: none; /* Hidden until game starts */
         }
 
         /* --- UI Overlays --- */
@@ -39,6 +78,7 @@
             color: white;
             font-family: sans-serif;
             padding: 10px;
+            display: none; /* Hidden until game starts */
         }
 
         #health-bar, #zone-info {
@@ -89,6 +129,12 @@
     </style>
 </head>
 <body>
+    <div id="lobby-screen">
+        <h1>FFA Clone Battle Royale</h1>
+        <p>A simple Third-Person Shooter by AhmadsBewerbung.</p>
+        <button id="play-button">Start Game</button>
+    </div>
+
     <div id="crosshair"></div>
 
     <div id="game-ui">
@@ -131,27 +177,31 @@
         const playerSpeed = 0.3;
         const keyState = {};
         const player = new THREE.Object3D(); 
+        const cameraPitch = new THREE.Object3D(); // NEW: Object to handle up/down look
         player.position.set(0, 0, 10); 
 
-        // Third Person Camera Constants - Adjusted for Left-Side View
-        const TP_CAMERA_DISTANCE = 6;    // Closer to player
-        const TP_CAMERA_HEIGHT = 4;      // Above player
-        const TP_CAMERA_LATERAL = -2.5;  // Negative X offset moves camera to the player's LEFT (Over-the-shoulder)
+        // Third Person Camera Constants - Left-Side View
+        const TP_CAMERA_DISTANCE = 6;
+        const TP_CAMERA_HEIGHT = 4;
+        const TP_CAMERA_LATERAL = -2.5; 
         
         // --- Shooting Variables ---
-        const bulletSpeed = 2.5; // Faster bullet
+        const bulletSpeed = 2.5;
         const activeBullets = [];
+        let gameActive = false; // NEW: State variable
 
         // --- Initialization Function ---
         function init() {
+            // 1. Scene and Renderer Setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb); 
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            // Camera position is relative to player: (X-Offset, Y-Offset, Z-Offset)
             camera.position.set(TP_CAMERA_LATERAL, TP_CAMERA_HEIGHT, TP_CAMERA_DISTANCE);
             
-            player.add(camera);
+            // NEW: Camera is attached to the pitch object, which is attached to the player
+            cameraPitch.add(camera);
+            player.add(cameraPitch);
             scene.add(player);
 
             // Player body mesh
@@ -165,26 +215,24 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Lighting
+            // 2. Lighting and Map Setup (same as before)
             const ambientLight = new THREE.AmbientLight(0x606060);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(1, 1, 0.5).normalize();
             scene.add(directionalLight);
 
-            // Ground
             const groundGeometry = new THREE.PlaneGeometry(300, 300);
             const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 }); 
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2; 
             scene.add(ground);
 
-            // Map Features
             createMapFeature(new THREE.Vector3(20, 5, 20), new THREE.Vector3(10, 10, 10), 0x964b00); 
             createMapFeature(new THREE.Vector3(-30, 7.5, 10), new THREE.Vector3(15, 15, 15), 0x808080); 
             createMapFeature(new THREE.Vector3(5, 2.5, -40), new THREE.Vector3(5, 5, 5), 0x006400); 
 
-            // UI and Event Listeners
+            // 3. UI and Event Listeners
             updateInventoryUI();
             updateHealthUI();
             updateZoneUI();
@@ -193,39 +241,49 @@
             document.addEventListener('keyup', onKeyUp, false);
             document.addEventListener('mousemove', onMouseMove, false);
 
-            document.body.addEventListener('click', () => {
-                if(document.pointerLockElement) {
-                    shoot(); 
-                } else {
-                    renderer.domElement.requestPointerLock();
-                }
-            });
+            document.getElementById('play-button').addEventListener('click', startGame);
 
+            // Start loop immediately, but logic only runs when gameActive is true
             animate();
         }
+        
+        // --- NEW: Game State and Start Logic ---
+        function startGame() {
+            document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('crosshair').style.display = 'block';
+            renderer.domElement.requestPointerLock();
+            gameActive = true;
+        }
+
 
         // --- Main Game Loop ---
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
 
-            handlePlayerMovement(delta);
-            handleZoneLogic();
-            handleBullets(delta); 
-            
-            // Camera always looks at the player's chest height
-            camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+            if (gameActive) {
+                handlePlayerMovement(delta);
+                handleZoneLogic();
+                handleBullets(delta); 
+                
+                // Camera always looks at the player's chest height
+                camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+            }
             
             renderer.render(scene, camera);
         }
 
         // --- Shooting Logic ---
         function shoot() {
-            // Get direction from the center of the screen (crosshair)
+            if (!gameActive) return;
+
+            // Get direction from the center of the screen (crosshair) using the camera's view
             const shootRaycaster = new THREE.Raycaster();
-            shootRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera); // Vector2(0,0) is the screen center
+            shootRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera); 
             const direction = shootRaycaster.ray.direction.clone();
             
+            // Bullet visual setup
             const bulletGeometry = new THREE.SphereGeometry(0.15, 8, 8);
             const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
@@ -240,7 +298,7 @@
             activeBullets.push({
                 mesh: bullet,
                 direction: direction.normalize(), 
-                life: 300 // Longer life for better visibility
+                life: 300 
             });
         }
 
@@ -262,8 +320,6 @@
 
 
         // --- Game Logic Functions ---
-
-        // NEW: Handles W, S, A, D movement (Forward, Backward, Strafe Left, Strafe Right)
         function handlePlayerMovement(delta) {
             const distance = playerSpeed * delta * 60; 
 
@@ -288,7 +344,7 @@
             if (keyState['a']) {
                 player.position.addScaledVector(right, -distance);
             }
-            // D - Strafe Right (R key is not used here for movement)
+            // D - Strafe Right (Fixed movement controls)
             if (keyState['d']) {
                 player.position.addScaledVector(right, distance);
             }
@@ -372,7 +428,6 @@
         }
 
         function onKeyDown(event) {
-            // Converts key to lowercase for consistent checking (w/a/s/d)
             keyState[event.key.toLowerCase()] = true; 
             
             const slotKey = parseInt(event.key);
@@ -386,11 +441,21 @@
             keyState[event.key.toLowerCase()] = false;
         }
 
-        // Rotation is still handled by mouse movement (yaw)
+        // FIX: Handles Camera Yaw (player rotation) and Pitch (cameraPitch rotation)
         function onMouseMove(event) {
             if (document.pointerLockElement === renderer.domElement) {
-                const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                const movementX = event.movementX || 0;
+                const movementY = event.movementY || 0;
+
+                // 1. Yaw (Left/Right) - Rotates the entire player model
                 player.rotation.y -= movementX * 0.002;
+                
+                // 2. Pitch (Up/Down) - Rotates the cameraPitch object
+                cameraPitch.rotation.x -= movementY * 0.002;
+                
+                // Limit pitch rotation (to prevent flipping over)
+                const maxPitch = Math.PI / 4; // 45 degrees
+                cameraPitch.rotation.x = Math.max(-maxPitch, Math.min(maxPitch, cameraPitch.rotation.x));
             }
         }
 
