@@ -1,0 +1,64 @@
+body {
+    margin: 0;
+    overflow: hidden; /* Hide scrollbars, as the game fills the screen */
+    background-color: #000;
+}
+
+canvas {
+    display: block;
+}
+
+/* --- UI Overlays --- */
+#game-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    pointer-events: none; /* Allows mouse to interact with the canvas underneath */
+    color: white;
+    font-family: sans-serif;
+    padding: 10px;
+}
+
+#health-bar, #zone-info {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+#inventory {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+#inventory h3 {
+    display: none; /* Hide header on small screen inventory */
+}
+
+.slot {
+    width: 80px;
+    height: 80px;
+    line-height: 80px;
+    text-align: center;
+    margin: 0 5px;
+    border: 3px solid #666;
+    background-color: #333;
+    border-radius: 5px;
+    transition: border-color 0.2s;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slot.active {
+    border-color: #ff9900; /* Gold/Orange for selected slot */
+    background-color: #555;
+}
