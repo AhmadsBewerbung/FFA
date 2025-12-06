@@ -2,553 +2,411 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>FFA Clone Battle Royale</title> 
-    
+    <title>Fortnite Web Clone</title> 
     <style>
-        body {
-            margin: 0;
-            overflow: hidden; 
-            background-color: #000;
-        }
-
-        canvas {
-            display: block;
-        }
+        body { margin: 0; overflow: hidden; background-color: #000; user-select: none; }
+        canvas { display: block; }
         
-        /* Lobby Screen Styles */
+        /* --- LOBBY SCREEN --- */
         #lobby-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-family: 'Arial', sans-serif;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #2b4570 0%, #000000 100%);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             z-index: 100;
         }
-
-        #lobby-screen h1 {
-            font-size: 5em;
-            margin-bottom: 5px;
-            color: #ffde00;
-            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
-        }
-
-        #lobby-screen p {
-            font-size: 1.2em;
-            margin-bottom: 40px;
-        }
-
+        h1 { font-size: 5em; margin: 0; color: #f9d83e; text-shadow: 4px 4px 0px #000; font-style: italic; transform: skewY(-3deg); }
+        p { font-size: 1.5em; margin-bottom: 40px; color: #ddd; }
         #play-button {
-            padding: 15px 60px;
-            font-size: 1.8em;
-            cursor: pointer;
-            background-color: #00bfff;
-            border: 3px solid #ffffff;
-            border-radius: 50px;
-            color: white;
-            font-weight: bold;
-            transition: all 0.2s;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            padding: 20px 80px; font-size: 2em; cursor: pointer;
+            background: #f9d83e; border: none; transform: skewX(-10deg);
+            color: black; font-weight: 900; box-shadow: 5px 5px 0px white;
+            transition: transform 0.1s;
         }
+        #play-button:active { transform: skewX(-10deg) translate(2px, 2px); box-shadow: 2px 2px 0px white; }
 
-        #play-button:hover {
-            background-color: #0099e6;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Crosshair Style */
+        /* --- IN-GAME UI --- */
         #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 10px;
-            height: 10px;
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            border-radius: 50%; 
-            transform: translate(-50%, -50%); 
-            pointer-events: none; 
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            display: none; 
+            position: absolute; top: 50%; left: 50%;
+            width: 8px; height: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid black; border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
+        }
+        
+        #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        
+        #health-container {
+            position: absolute; bottom: 30px; left: 30px;
+            width: 300px; height: 20px; background: #333;
+            border: 3px solid black; transform: skewX(-10deg);
+        }
+        #health-bar {
+            width: 100%; height: 100%; background: #58ea28;
+            transition: width 0.2s;
+        }
+        
+        #storm-timer {
+            position: absolute; top: 20px; right: 20px;
+            font-family: monospace; font-size: 24px; font-weight: bold;
+            color: #d85ef6; background: rgba(0,0,0,0.5); padding: 10px;
+            border: 2px solid #d85ef6;
         }
 
-        /* --- UI Overlays --- */
-        #game-ui {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            pointer-events: none;
-            color: white;
-            font-family: sans-serif;
-            padding: 10px;
-            display: none; 
-        }
-
-        #health-bar, #zone-info {
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        /* Inventory Positioning (Bottom Right and Smaller) */
         #inventory {
-            position: fixed;
-            bottom: 20px;
-            right: 20px; 
-            left: auto;  
-            transform: none; 
-            display: flex;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 5px; 
-            border-radius: 8px;
+            position: absolute; bottom: 30px; right: 30px;
+            display: flex; gap: 10px;
         }
-
-        #inventory h3 {
-            display: none;
-        }
-
-        /* Slot Sizes (Smaller) */
         .slot {
-            width: 60px; 
-            height: 60px; 
-            line-height: 60px;
-            text-align: center;
-            margin: 0 4px; 
-            border: 2px solid #666; 
-            background-color: #333;
-            border-radius: 4px;
-            transition: border-color 0.2s;
-            font-size: 12px; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            width: 60px; height: 60px; background: rgba(0,0,0,0.6);
+            border: 3px solid #555; color: white; display: flex;
+            justify-content: center; align-items: center; font-weight: bold;
+            font-family: sans-serif; position: relative;
         }
-
-        .slot.active {
-            border-color: #ff9900; 
-            background-color: #555;
+        .slot span { font-size: 10px; position: absolute; top: 2px; left: 4px; color: #aaa; }
+        .slot.active { border-color: #f9d83e; background: rgba(249, 216, 62, 0.2); transform: scale(1.1); }
+        
+        #controls-hint {
+            position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+            color: rgba(255,255,255,0.5); font-family: monospace;
         }
     </style>
 </head>
 <body>
+
     <div id="lobby-screen">
-        <h1>FFA Clone Battle Royale</h1>
-        <p>A simple Third-Person Shooter by AhmadsBewerbung.</p>
-        <button id="play-button">Start Battle</button>
+        <h1>FORTNITE CLONE</h1>
+        <p>Build, Shoot, Survive the Storm</p>
+        <button id="play-button">BATTLE BUS</button>
     </div>
 
     <div id="crosshair"></div>
-
     <div id="game-ui">
-        <div id="health-bar">Health: <span id="health-value">100</span></div>
-        <div id="zone-info">Zone Size: <span id="zone-size">100</span></div>
+        <div id="controls-hint">
+            WASD: Move<br>SPACE: Jump<br>CLICK: Shoot<br>Q: Build Wall<br>1-5: Inventory
+        </div>
+        <div id="storm-timer">STORM: <span id="zone-dist">100</span>m</div>
+        <div id="health-container"><div id="health-bar"></div></div>
         
         <div id="inventory">
-            <h3>Inventory (Keys 1-5)</h3>
-            <div class="slot" data-key="1">1. Empty</div>
-            <div class="slot" data-key="2">2. Empty</div>
-            <div class="slot" data-key="3">3. Empty</div>
-            <div class="slot" data-key="4">4. Empty</div>
-            <div class="slot" data-key="5">5. Empty</div>
+            <div class="slot active" id="slot1"><span>1</span>AR</div>
+            <div class="slot" id="slot2"><span>2</span>Shotgun</div>
+            <div class="slot" id="slot3"><span>3</span>Pickaxe</div>
+            <div class="slot" id="slot4"><span>4</span>Meds</div>
+            <div class="slot" id="slot5"><span>5</span>Sniper</div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- Global Game Variables ---
+        // --- CONFIGURATION ---
+        const MOVEMENT_SPEED = 0.5;
+        const JUMP_FORCE = 0.8;
+        const GRAVITY = 0.04;
+        const MOUSE_SENSITIVITY = 0.002;
+        
+        // --- GLOBALS ---
         let scene, camera, renderer;
-        let playerHealth = 100;
-        let zoneRadius = 100; 
-        let zoneCenter = new THREE.Vector3(0, 0, 0); 
-        const damagePerTick = 1;
-        const zoneShrinkRate = 0.05; 
-        const clock = new THREE.Clock();
-
-        // --- Inventory Data ---
-        const inventory = [
-            { name: "AR (Epic)", rarity: "Epic" },
-            { name: "Pistol (Common)", rarity: "Common" },
-            { name: "Sniper (Legendary)", rarity: "Legendary" },
-            { name: "Shotgun (Rare)", rarity: "Rare" },
-            { name: "SMG (Uncommon)", rarity: "Uncommon" }
-        ];
-        let activeSlot = 0; 
-
-        // --- Player & Camera Variables ---
-        const playerSpeed = 0.3;
-        const keyState = {};
-        const player = new THREE.Object3D(); 
-        const cameraPitch = new THREE.Object3D(); 
-        player.position.set(0, 1.7, 10); 
-
-        // Physics Variables
-        let velocityY = 0; 
-        const gravity = -9.8 * 0.02; 
-        const jumpPower = 0.6; 
-        const groundY = 0; 
+        let player, cameraPivot;
+        let gameActive = false;
+        let health = 100;
+        let zoneRadius = 150;
+        let velocityY = 0;
+        let onGround = false;
         
-        // Third Person Camera Constants - Left-Side View
-        const TP_CAMERA_DISTANCE = 6;
-        const TP_CAMERA_HEIGHT = 4;
-        const TP_CAMERA_LATERAL = -2.5; 
-        
-        // Shooting Variables
-        const bulletSpeed = 2.5;
-        const activeBullets = [];
-        let gameActive = false; 
+        // Arrays
+        let bullets = [];
+        let walls = [];
+        let environment = [];
 
-        // --- Initialization Function ---
+        // Input
+        const keys = {};
+        let activeSlot = 1;
+
+        // Storm Visual
+        let stormWall;
+
         function init() {
-            document.getElementById('play-button').addEventListener('click', startGame);
-            
+            // Setup Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
-            
-            // Attach input handlers to the document, or sometimes the renderer element is better for mouse.
-            document.addEventListener('keydown', onKeyDown, false);
-            document.addEventListener('keyup', onKeyUp, false);
-            document.addEventListener('click', onDocumentClick, false);
 
-            // CRITICAL FIX: Attach mouse move specifically to the canvas/renderer element 
-            // after it's in the DOM, so Pointer Lock works reliably with camera controls.
-            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
-            
+            // Listeners
+            document.getElementById('play-button').addEventListener('click', startGame);
+            window.addEventListener('resize', onResize);
+            document.addEventListener('keydown', (e) => keys[e.code] = true);
+            document.addEventListener('keyup', (e) => keys[e.code] = false);
+            document.addEventListener('mousedown', onClick);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('keydown', onKeyDownSpecial); // For switching slots/building
+
             animate();
         }
-        
-        // --- Game State and Start Logic ---
+
         function startGame() {
-            if (scene) return; 
-            
-            // Hide Lobby UI
             document.getElementById('lobby-screen').style.display = 'none';
-            // Show Game UI
             document.getElementById('game-ui').style.display = 'block';
             document.getElementById('crosshair').style.display = 'block';
-
-            // --- 3D Scene Setup ---
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x5ad4e4);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(TP_CAMERA_LATERAL, TP_CAMERA_HEIGHT, TP_CAMERA_DISTANCE);
             
-            cameraPitch.add(camera);
-            player.add(cameraPitch);
-            scene.add(player);
-
-            createHumanoidPlayer(player);
-
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040, 3);
-            scene.add(ambientLight);
+            // Pointer Lock is ESSENTIAL for shooters
+            document.body.requestPointerLock();
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-            directionalLight.position.set(10, 20, 10);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
-
-            // Ground
-            const groundGeometry = new THREE.PlaneGeometry(300, 300);
-            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x4caf50 });
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2; 
-            scene.add(ground);
-
-            // Map Features
-            createMapFeature(new THREE.Vector3(20, 5, 20), new THREE.Vector3(10, 10, 10), 0x964b00); 
-            createMapFeature(new THREE.Vector3(-30, 7.5, 10), new THREE.Vector3(15, 15, 15), 0x808080); 
-            createMapFeature(new THREE.Vector3(5, 2.5, -40), new THREE.Vector3(5, 5, 5), 0x006400); 
-
-            // Request Pointer Lock here to capture input
-            renderer.domElement.requestPointerLock();
+            setupScene();
             gameActive = true;
-            onWindowResize(); 
         }
 
-        // --- Helper for handling initial click and shooting ---
-        function onDocumentClick(event) {
-            // If the game is active, this click triggers the shoot function
-            if (gameActive && document.pointerLockElement) {
-                shoot();
-            } 
-            // If the game is active but pointer lock was lost (e.g., pressed ESC), 
-            // a click should re-lock the pointer
-            else if (gameActive && !document.pointerLockElement) {
-                renderer.domElement.requestPointerLock();
+        function setupScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky Blue
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 200);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // Player Group
+            player = new THREE.Group();
+            createPlayerModel();
+            scene.add(player);
+            player.position.set(0, 5, 0);
+
+            // Camera Pivot (For 3rd Person)
+            cameraPivot = new THREE.Object3D();
+            cameraPivot.position.y = 2.5; // Eye level
+            player.add(cameraPivot);
+            
+            // Camera Offset
+            cameraPivot.add(camera);
+            camera.position.set(2, 0.5, 4); // Shoulder view
+            camera.lookAt(cameraPivot.position);
+
+            // Lighting
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.camera.left = -100;
+            sun.shadow.camera.right = 100;
+            sun.shadow.camera.top = 100;
+            sun.shadow.camera.bottom = -100;
+            scene.add(sun);
+            
+            const ambient = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambient);
+
+            // Ground
+            const planeGeo = new THREE.PlaneGeometry(400, 400);
+            const planeMat = new THREE.MeshStandardMaterial({ color: 0x4C9A2A }); // Grass Green
+            const ground = new THREE.Mesh(planeGeo, planeMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Map Objects (Trees/Rocks)
+            for(let i=0; i<20; i++) {
+                createTree(Math.random() * 200 - 100, Math.random() * 200 - 100);
+            }
+            
+            // The Storm
+            const stormGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 100, 32, 1, true);
+            const stormMat = new THREE.MeshBasicMaterial({ color: 0xA020F0, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+            stormWall = new THREE.Mesh(stormGeo, stormMat);
+            stormWall.position.y = 50;
+            scene.add(stormWall);
+        }
+
+        function createPlayerModel() {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x3366cc });
+            const skin = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.6), mat);
+            body.position.y = 2.25;
+            body.castShadow = true;
+            player.add(body);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), skin);
+            head.position.y = 3.3;
+            head.castShadow = true;
+            player.add(head);
+        }
+
+        function createTree(x, z) {
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 3), new THREE.MeshStandardMaterial({color: 0x5c4033}));
+            trunk.position.set(x, 1.5, z);
+            trunk.castShadow = true;
+            scene.add(trunk);
+            environment.push(trunk);
+
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 6, 8), new THREE.MeshStandardMaterial({color: 0x228b22}));
+            leaves.position.set(x, 5, z);
+            leaves.castShadow = true;
+            scene.add(leaves);
+        }
+
+        function onMouseMove(e) {
+            if(!gameActive) return;
+            // Horizontal rotation (Player)
+            player.rotation.y -= e.movementX * MOUSE_SENSITIVITY;
+            
+            // Vertical rotation (Camera Pivot)
+            cameraPivot.rotation.x -= e.movementY * MOUSE_SENSITIVITY;
+            // Clamp Look Up/Down
+            cameraPivot.rotation.x = Math.max(-1.2, Math.min(1.2, cameraPivot.rotation.x));
+        }
+
+        function onKeyDownSpecial(e) {
+            // Inventory Switching
+            if(e.key >= 1 && e.key <= 5) {
+                document.querySelectorAll('.slot').forEach(el => el.classList.remove('active'));
+                document.getElementById('slot'+e.key).classList.add('active');
+                activeSlot = parseInt(e.key);
+            }
+            // Building
+            if(e.code === 'KeyQ') {
+                buildWall();
             }
         }
 
-        // --- Humanoid Player Builder ---
-        function createHumanoidPlayer(playerContainer) {
-            // Torso (Body)
-            const bodyGeometry = new THREE.BoxGeometry(1, 1.2, 0.6);
-            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); 
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 1.4;
-            playerContainer.add(body);
-            
-            // Head
-            const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac }); 
-            const head = new THREE.Mesh(headGeometry, headMaterial);
-            head.position.y = 2.4;
-            playerContainer.add(head);
-
-            // Legs (combined block for simplicity)
-            const legGeometry = new THREE.BoxGeometry(0.8, 1.4, 0.6);
-            const legMaterial = new THREE.MeshLambertMaterial({ color: 0x00008b }); 
-            const legs = new THREE.Mesh(legGeometry, legMaterial);
-            legs.position.y = 0.7;
-            playerContainer.add(legs);
+        function onClick() {
+            if(!gameActive) {
+                document.body.requestPointerLock();
+                return;
+            }
+            shoot();
         }
 
-        // --- Main Game Loop ---
+        function buildWall() {
+            // Snap to grid
+            const gridSize = 5;
+            // Calculate position in front of player
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+            const buildPos = player.position.clone().add(forward.multiplyScalar(5));
+            
+            // Snap coords
+            const snapX = Math.round(buildPos.x / gridSize) * gridSize;
+            const snapZ = Math.round(buildPos.z / gridSize) * gridSize;
+            
+            const wallGeo = new THREE.BoxGeometry(5, 5, 0.5);
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, map: null }); // Wood color
+            const wall = new THREE.Mesh(wallGeo, wallMat);
+            
+            wall.position.set(snapX, 2.5, snapZ);
+            wall.rotation.y = player.rotation.y; // Roughly face player
+            
+            // Snap rotation to 90 degrees
+            const rotY = Math.round(wall.rotation.y / (Math.PI/2)) * (Math.PI/2);
+            wall.rotation.y = rotY;
+
+            scene.add(wall);
+            walls.push(wall);
+        }
+
+        function shoot() {
+            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            
+            // Start at player position
+            bullet.position.copy(player.position);
+            bullet.position.y += 2.5; // Gun height
+
+            // Calculate direction: Raycast from camera center
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Get direction from player to the raycasted point (aim point)
+            const aimDir = raycaster.ray.direction.clone();
+            
+            bullet.userData = { velocity: aimDir.multiplyScalar(2), life: 100 };
+            scene.add(bullet);
+            bullets.push(bullet);
+        }
+
+        function updatePhysics() {
+            // Gravity
+            velocityY -= GRAVITY;
+            player.position.y += velocityY;
+
+            // Ground Collision
+            if(player.position.y <= 0) {
+                player.position.y = 0;
+                velocityY = 0;
+                onGround = true;
+            } else {
+                onGround = false;
+            }
+
+            // Movement
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
+            
+            if(keys['KeyW']) player.position.add(forward.clone().multiplyScalar(MOVEMENT_SPEED));
+            if(keys['KeyS']) player.position.add(forward.clone().multiplyScalar(-MOVEMENT_SPEED));
+            if(keys['KeyA']) player.position.add(right.clone().multiplyScalar(-MOVEMENT_SPEED));
+            if(keys['KeyD']) player.position.add(right.clone().multiplyScalar(MOVEMENT_SPEED));
+            
+            // Jump
+            if(keys['Space'] && onGround) {
+                velocityY = JUMP_FORCE;
+            }
+        }
+
+        function updateGameLogic() {
+            // Shrink Zone
+            if(zoneRadius > 0) {
+                zoneRadius -= 0.05;
+                stormWall.scale.set(zoneRadius/150, 1, zoneRadius/150); // Scale initial visual
+                document.getElementById('zone-dist').innerText = Math.floor(zoneRadius);
+            }
+
+            // Check Zone Damage
+            const dist = Math.sqrt(player.position.x**2 + player.position.z**2);
+            if(dist > zoneRadius) {
+                health -= 0.1;
+                document.getElementById('health-bar').style.width = health + '%';
+                if(health <= 0) {
+                    alert("Eliminated by Storm!");
+                    location.reload();
+                }
+            }
+
+            // Update Bullets
+            for(let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                b.position.add(b.userData.velocity);
+                b.userData.life--;
+                
+                // Simple collision check with ground or walls could go here
+                
+                if(b.userData.life <= 0) {
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            
-            if (gameActive && scene && renderer) {
-                const delta = clock.getDelta();
-                handlePhysics(delta); 
-                handlePlayerMovement(delta);
-                handleZoneLogic();
-                handleBullets(delta); 
-                
-                // Camera fix: Ensure camera looks forward/down correctly from its offset position
-                camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
-                
+            if(gameActive) {
+                updatePhysics();
+                updateGameLogic();
                 renderer.render(scene, camera);
             }
         }
 
-        // --- Physics Handler (Gravity and Jump) ---
-        function handlePhysics(delta) {
-            // This entire block only runs if gameActive is true (checked in animate())
-            
-            // 1. Apply Gravity
-            velocityY += gravity;
-            
-            // 2. Apply Vertical Movement
-            player.position.y += velocityY * delta * 60; 
-
-            // 3. Ground Check
-            if (player.position.y <= groundY) {
-                player.position.y = groundY; 
-                velocityY = 0; 
-                
-                // Handle jump initiation when on the ground
-                if (keyState[' ']) { 
-                    velocityY = jumpPower; 
-                    keyState[' '] = false; // Consume the jump press
-                }
-            }
-        }
-
-
-        // --- Shooting Logic ---
-        function shoot() {
-            // Check Pointer Lock status before shooting (CRITICAL)
-            if (!gameActive || !document.pointerLockElement) return;
-
-            const shootRaycaster = new THREE.Raycaster();
-            shootRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera); 
-            const direction = shootRaycaster.ray.direction.clone();
-            
-            const bulletGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-            
-            const spawnHeight = player.position.y + 1.2; 
-            bullet.position.copy(player.position).add(direction.clone().multiplyScalar(1));
-            bullet.position.y = spawnHeight;
-
-            scene.add(bullet);
-
-            activeBullets.push({
-                mesh: bullet,
-                direction: direction.normalize(), 
-                life: 300 
-            });
-        }
-
-        function handleBullets(delta) {
-            for (let i = activeBullets.length - 1; i >= 0; i--) {
-                const bulletData = activeBullets[i];
-                
-                bulletData.mesh.position.addScaledVector(bulletData.direction, bulletSpeed * delta * 60);
-                
-                bulletData.life--;
-
-                if (bulletData.life <= 0) {
-                    scene.remove(bulletData.mesh);
-                    activeBullets.splice(i, 1);
-                }
-            }
-        }
-
-
-        // --- Game Logic Functions ---
-        function handlePlayerMovement(delta) {
-            // This entire block only runs if gameActive is true (checked in animate())
-            // Check Pointer Lock status for movement (CRITICAL)
-            if (!document.pointerLockElement) return;
-
-            const distance = playerSpeed * delta * 60; 
-
-            const forward = new THREE.Vector3(0, 0, 1);
-            forward.applyQuaternion(player.quaternion);
-            forward.y = 0; 
-            forward.normalize();
-            
-            const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-            // W - Move Forward
-            if (keyState['w']) {
-                player.position.addScaledVector(forward, distance);
-            }
-            // S - Move Backward
-            if (keyState['s']) {
-                player.position.addScaledVector(forward, -distance);
-            }
-            // A - Strafe Left
-            if (keyState['a']) {
-                player.position.addScaledVector(right, -distance);
-            }
-            // D - Strafe Right
-            if (keyState['d']) {
-                player.position.addScaledVector(right, distance);
-            }
-            
-            const maxBound = 145; 
-            player.position.x = Math.max(-maxBound, Math.min(maxBound, player.position.x));
-            player.position.z = Math.max(-maxBound, Math.min(maxBound, player.position.z));
-        }
-
-        function handleZoneLogic() {
-            if (!gameActive) return;
-            zoneRadius -= zoneShrinkRate * clock.getDelta();
-            zoneRadius = Math.max(10, zoneRadius); 
-
-            const playerDistance = player.position.distanceTo(zoneCenter);
-            
-            if (playerDistance > zoneRadius) {
-                playerHealth = Math.max(0, playerHealth - damagePerTick * clock.getDelta() * 10);
-                updateHealthUI();
-
-                renderer.domElement.style.border = '2px solid red';
-                setTimeout(() => renderer.domElement.style.border = 'none', 100);
-            }
-
-            updateZoneUI();
-
-            if (playerHealth <= 0) {
-                alert("You were eliminated by the storm! Refresh to restart.");
-                cancelAnimationFrame(animate); 
-            }
-        }
-
-
-        // --- UI Update Functions and Helpers ---
-        function updateInventoryUI() {
-            const slots = document.querySelectorAll('.slot');
-            slots.forEach((slot, index) => {
-                const item = inventory[index];
-                slot.textContent = `${index + 1}. ${item.name}`;
-                slot.style.color = getRarityColor(item.rarity);
-                
-                if (index === activeSlot) {
-                    slot.classList.add('active');
-                } else {
-                    slot.classList.remove('active');
-                }
-            });
-        }
-
-        function updateHealthUI() {
-            document.getElementById('health-value').textContent = Math.round(playerHealth);
-        }
-
-        function updateZoneUI() {
-            document.getElementById('zone-size').textContent = Math.round(zoneRadius);
-        }
-
-        function getRarityColor(rarity) {
-            switch(rarity) {
-                case 'Common': return '#aaaaaa'; 
-                case 'Uncommon': return '#00aa00'; 
-                case 'Rare': return '#0000aa'; 
-                case 'Epic': return '#aa00aa'; 
-                case 'Legendary': return '#ff8000'; 
-                default: return 'white';
-            }
-        }
-
-        function createMapFeature(position, size, color) {
-            const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-            const material = new THREE.MeshLambertMaterial({ color: color });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set(position.x, position.y / 2, position.z); 
-            scene.add(mesh);
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        function onWindowResize() {
-            if (camera) {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }
-        }
-
-        function onKeyDown(event) {
-            if (!gameActive) return;
-            const key = event.key.toLowerCase();
-            keyState[key] = true; 
-            
-            if (key === ' ') {
-                keyState[' '] = true;
-            }
-
-            const slotKey = parseInt(event.key);
-            if (slotKey >= 1 && slotKey <= 5) {
-                activeSlot = slotKey - 1;
-                updateInventoryUI();
-            }
-        }
-
-        function onKeyUp(event) {
-            if (!gameActive) return;
-            keyState[event.key.toLowerCase()] = false;
-        }
-
-        // Mouse movement handler is now attached to renderer.domElement
-        function onMouseMove(event) {
-            // CRITICAL FIX: Ensure pointer is locked
-            if (!gameActive || document.pointerLockElement !== renderer.domElement) return;
-
-            const movementX = event.movementX || 0;
-            const movementY = event.movementY || 0;
-
-            // Yaw (Left/Right)
-            player.rotation.y -= movementX * 0.002;
-            
-            // Pitch (Up/Down)
-            cameraPitch.rotation.x -= movementY * 0.002;
-            
-            const maxPitch = Math.PI / 4; 
-            cameraPitch.rotation.x = Math.max(-maxPitch, Math.min(maxPitch, cameraPitch.rotation.x));
-        }
-
+        // Initial init
         window.onload = init;
+
     </script>
 </body>
 </html>
