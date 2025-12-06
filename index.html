@@ -2,411 +2,498 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fortnite Web Clone</title> 
+    <title>Fortnite Web Engine V2</title> 
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; user-select: none; }
-        canvas { display: block; }
         
-        /* --- LOBBY SCREEN --- */
-        #lobby-screen {
+        /* UI OVERLAY */
+        #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, #2b4570 0%, #000000 100%);
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            z-index: 100;
+            pointer-events: none;
+            font-family: 'Segoe UI', sans-serif;
+            text-shadow: 2px 2px 0 #000;
         }
-        h1 { font-size: 5em; margin: 0; color: #f9d83e; text-shadow: 4px 4px 0px #000; font-style: italic; transform: skewY(-3deg); }
-        p { font-size: 1.5em; margin-bottom: 40px; color: #ddd; }
-        #play-button {
-            padding: 20px 80px; font-size: 2em; cursor: pointer;
-            background: #f9d83e; border: none; transform: skewX(-10deg);
-            color: black; font-weight: 900; box-shadow: 5px 5px 0px white;
-            transition: transform 0.1s;
-        }
-        #play-button:active { transform: skewX(-10deg) translate(2px, 2px); box-shadow: 2px 2px 0px white; }
 
-        /* --- IN-GAME UI --- */
+        /* CROSSHAIR */
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 8px; height: 8px;
-            background: rgba(255, 255, 255, 0.8);
-            border: 2px solid black; border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none;
-        }
-        
-        #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
-        
-        #health-container {
-            position: absolute; bottom: 30px; left: 30px;
-            width: 300px; height: 20px; background: #333;
-            border: 3px solid black; transform: skewX(-10deg);
-        }
-        #health-bar {
-            width: 100%; height: 100%; background: #58ea28;
-            transition: width 0.2s;
-        }
-        
-        #storm-timer {
-            position: absolute; top: 20px; right: 20px;
-            font-family: monospace; font-size: 24px; font-weight: bold;
-            color: #d85ef6; background: rgba(0,0,0,0.5); padding: 10px;
-            border: 2px solid #d85ef6;
+            width: 6px; height: 6px;
+            background: white; border: 2px solid rgba(0,0,0,0.5);
+            border-radius: 50%; transform: translate(-50%, -50%);
         }
 
-        #inventory {
-            position: absolute; bottom: 30px; right: 30px;
-            display: flex; gap: 10px;
+        /* STATS */
+        #stats-bar {
+            position: absolute; bottom: 30px; left: 30px;
+            color: white; font-size: 20px; font-weight: bold;
+            display: flex; gap: 20px;
         }
-        .slot {
-            width: 60px; height: 60px; background: rgba(0,0,0,0.6);
-            border: 3px solid #555; color: white; display: flex;
-            justify-content: center; align-items: center; font-weight: bold;
-            font-family: sans-serif; position: relative;
+        .stat-box { background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 5px; border-left: 5px solid; }
+        #health-box { border-color: #4cd137; }
+        #ammo-box { border-color: #fbc531; }
+
+        /* BUILD CONTROLS VISUAL */
+        #build-menu {
+            position: absolute; bottom: 120px; right: 30px;
+            display: flex; flex-direction: column; gap: 5px;
+            text-align: right; color: white; font-size: 14px; opacity: 0.8;
         }
-        .slot span { font-size: 10px; position: absolute; top: 2px; left: 4px; color: #aaa; }
-        .slot.active { border-color: #f9d83e; background: rgba(249, 216, 62, 0.2); transform: scale(1.1); }
-        
-        #controls-hint {
-            position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
-            color: rgba(255,255,255,0.5); font-family: monospace;
+        .key-hint { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; }
+        .active-build { color: #00a8ff; border: 1px solid #00a8ff; }
+
+        /* MESSAGES */
+        #message-area {
+            position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+            color: #e84118; font-weight: bold; font-size: 24px; display: none;
         }
+
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, #1e3799, #0c2461);
+            display: flex; justify-content: center; align-items: center;
+            pointer-events: all; z-index: 999;
+        }
+        #start-btn {
+            padding: 20px 50px; font-size: 24px; font-weight: bold;
+            background: #fbc531; border: none; cursor: pointer;
+            box-shadow: 0 5px 0 #c29726; transition: 0.1s;
+        }
+        #start-btn:active { transform: translateY(5px); box-shadow: none; }
     </style>
 </head>
 <body>
 
-    <div id="lobby-screen">
-        <h1>FORTNITE CLONE</h1>
-        <p>Build, Shoot, Survive the Storm</p>
-        <button id="play-button">BATTLE BUS</button>
+    <div id="start-screen">
+        <button id="start-btn">CLICK TO PLAY</button>
     </div>
 
-    <div id="crosshair"></div>
-    <div id="game-ui">
-        <div id="controls-hint">
-            WASD: Move<br>SPACE: Jump<br>CLICK: Shoot<br>Q: Build Wall<br>1-5: Inventory
-        </div>
-        <div id="storm-timer">STORM: <span id="zone-dist">100</span>m</div>
-        <div id="health-container"><div id="health-bar"></div></div>
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="message-area">RELOADING...</div>
         
-        <div id="inventory">
-            <div class="slot active" id="slot1"><span>1</span>AR</div>
-            <div class="slot" id="slot2"><span>2</span>Shotgun</div>
-            <div class="slot" id="slot3"><span>3</span>Pickaxe</div>
-            <div class="slot" id="slot4"><span>4</span>Meds</div>
-            <div class="slot" id="slot5"><span>5</span>Sniper</div>
+        <div id="build-menu">
+            <div class="key-hint" id="hint-y">[Y] Wall</div>
+            <div class="key-hint" id="hint-x">[X] Floor</div>
+            <div class="key-hint" id="hint-c">[C] Stairs</div>
+            <div class="key-hint" id="hint-v">[V] Cone</div>
+            <div class="key-hint" id="hint-r">[R] Reload</div>
+        </div>
+
+        <div id="stats-bar">
+            <div class="stat-box" id="health-box">HP: 100</div>
+            <div class="stat-box" id="ammo-box">AMMO: 30</div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script>
-        // --- CONFIGURATION ---
-        const MOVEMENT_SPEED = 0.5;
-        const JUMP_FORCE = 0.8;
-        const GRAVITY = 0.04;
-        const MOUSE_SENSITIVITY = 0.002;
+        // --- CONSTANTS ---
+        const GRID_SIZE = 5;
+        const WALK_SPEED = 0.4;
+        const SPRINT_SPEED = 0.8;
+        const JUMP_FORCE = 0.7;
+        const GRAVITY = 0.03;
         
-        // --- GLOBALS ---
+        // --- VARIABLES ---
         let scene, camera, renderer;
         let player, cameraPivot;
-        let gameActive = false;
-        let health = 100;
-        let zoneRadius = 150;
+        let ground;
+        
+        // Physics
         let velocityY = 0;
         let onGround = false;
+        let canJump = true;
         
-        // Arrays
-        let bullets = [];
-        let walls = [];
-        let environment = [];
-
+        // State
+        let isSprint = false;
+        let isADS = false; // Aiming Down Sights
+        let isReloading = false;
+        let ammo = 30;
+        
         // Input
         const keys = {};
-        let activeSlot = 1;
-
-        // Storm Visual
-        let stormWall;
+        
+        // Building System
+        let buildMode = false;
+        let currentBuildType = 'none'; // 'wall', 'floor', 'stair', 'cone'
+        let previewMesh = null;
+        let previewMaterial;
+        const objects = []; // For collision/storage
 
         function init() {
-            // Setup Renderer
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 10, 150);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Listeners
-            document.getElementById('play-button').addEventListener('click', startGame);
-            window.addEventListener('resize', onResize);
-            document.addEventListener('keydown', (e) => keys[e.code] = true);
-            document.addEventListener('keyup', (e) => keys[e.code] = false);
-            document.addEventListener('mousedown', onClick);
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('keydown', onKeyDownSpecial); // For switching slots/building
+            // Player Setup
+            createPlayer();
+            createEnvironment();
+            setupBuildingSystem();
 
+            // Event Listeners
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('resize', onWindowResize);
+            
+            document.getElementById('start-btn').addEventListener('click', () => {
+                document.getElementById('start-screen').style.display = 'none';
+                document.body.requestPointerLock();
+            });
+
+            // Start Loop
             animate();
         }
 
-        function startGame() {
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-            document.getElementById('crosshair').style.display = 'block';
-            
-            // Pointer Lock is ESSENTIAL for shooters
-            document.body.requestPointerLock();
-            
-            setupScene();
-            gameActive = true;
-        }
-
-        function setupScene() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB); // Sky Blue
-            scene.fog = new THREE.Fog(0x87CEEB, 20, 200);
-
-            // Camera Setup
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            // Player Group
+        function createPlayer() {
             player = new THREE.Group();
-            createPlayerModel();
             scene.add(player);
             player.position.set(0, 5, 0);
 
-            // Camera Pivot (For 3rd Person)
+            // Simple Body Visual
+            const bodyGeo = new THREE.BoxGeometry(1, 1.8, 0.5);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
+            const mesh = new THREE.Mesh(bodyGeo, bodyMat);
+            mesh.position.y = 0.9;
+            mesh.castShadow = true;
+            player.add(mesh);
+
+            // Camera Pivot (Head)
             cameraPivot = new THREE.Object3D();
-            cameraPivot.position.y = 2.5; // Eye level
+            cameraPivot.position.set(0, 1.7, 0);
             player.add(cameraPivot);
             
-            // Camera Offset
+            // Attach Camera to Pivot
             cameraPivot.add(camera);
-            camera.position.set(2, 0.5, 4); // Shoulder view
-            camera.lookAt(cameraPivot.position);
+            camera.position.set(1.5, 0.5, 3.5); // Normal 3rd Person View
+            camera.lookAt(cameraPivot.position.clone().add(new THREE.Vector3(0,0,-10)));
+        }
 
-            // Lighting
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        function createEnvironment() {
+            // Lights
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
             sun.position.set(50, 100, 50);
             sun.castShadow = true;
-            sun.shadow.camera.left = -100;
-            sun.shadow.camera.right = 100;
-            sun.shadow.camera.top = 100;
-            sun.shadow.camera.bottom = -100;
+            sun.shadow.camera.left = -50;
+            sun.shadow.camera.right = 50;
+            sun.shadow.camera.top = 50;
+            sun.shadow.camera.bottom = -50;
             scene.add(sun);
-            
-            const ambient = new THREE.AmbientLight(0x404040, 0.8);
-            scene.add(ambient);
 
             // Ground
-            const planeGeo = new THREE.PlaneGeometry(400, 400);
-            const planeMat = new THREE.MeshStandardMaterial({ color: 0x4C9A2A }); // Grass Green
-            const ground = new THREE.Mesh(planeGeo, planeMat);
-            ground.rotation.x = -Math.PI / 2;
+            const groundGeo = new THREE.PlaneGeometry(500, 500);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x44bd32 });
+            ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2; // Flat ground
             ground.receiveShadow = true;
             scene.add(ground);
+            objects.push(ground);
 
-            // Map Objects (Trees/Rocks)
-            for(let i=0; i<20; i++) {
-                createTree(Math.random() * 200 - 100, Math.random() * 200 - 100);
+            // Random Trees
+            const treeGeo = new THREE.ConeGeometry(2, 8, 8);
+            const treeMat = new THREE.MeshStandardMaterial({ color: 0x009432 });
+            for(let i=0; i<30; i++) {
+                const tree = new THREE.Mesh(treeGeo, treeMat);
+                tree.position.set(
+                    (Math.random() - 0.5) * 200,
+                    4,
+                    (Math.random() - 0.5) * 200
+                );
+                tree.castShadow = true;
+                scene.add(tree);
+                objects.push(tree);
             }
+        }
+
+        function setupBuildingSystem() {
+            // Transparent Blue Material for Preview
+            previewMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00a8ff, 
+                transparent: true, 
+                opacity: 0.5,
+                wireframe: false
+            });
             
-            // The Storm
-            const stormGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 100, 32, 1, true);
-            const stormMat = new THREE.MeshBasicMaterial({ color: 0xA020F0, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-            stormWall = new THREE.Mesh(stormGeo, stormMat);
-            stormWall.position.y = 50;
-            scene.add(stormWall);
+            // Placeholder mesh, geometry changes dynamically
+            previewMesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), previewMaterial);
+            previewMesh.visible = false;
+            scene.add(previewMesh);
         }
 
-        function createPlayerModel() {
-            const mat = new THREE.MeshStandardMaterial({ color: 0x3366cc });
-            const skin = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+        // --- CONTROLS & INPUT ---
 
-            // Body
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.6), mat);
-            body.position.y = 2.25;
-            body.castShadow = true;
-            player.add(body);
+        function onKeyDown(e) {
+            keys[e.code] = true;
 
-            // Head
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), skin);
-            head.position.y = 3.3;
-            head.castShadow = true;
-            player.add(head);
+            // Sprint
+            if(e.code === 'CapsLock') isSprint = !isSprint; // Toggle
+
+            // Reload
+            if(e.code === 'KeyR') reload();
+
+            // Building Toggles
+            if(e.code === 'KeyY') setBuildMode('wall');
+            if(e.code === 'KeyX') setBuildMode('floor');
+            if(e.code === 'KeyC') setBuildMode('stair');
+            if(e.code === 'KeyV') setBuildMode('cone');
         }
 
-        function createTree(x, z) {
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 3), new THREE.MeshStandardMaterial({color: 0x5c4033}));
-            trunk.position.set(x, 1.5, z);
-            trunk.castShadow = true;
-            scene.add(trunk);
-            environment.push(trunk);
-
-            const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 6, 8), new THREE.MeshStandardMaterial({color: 0x228b22}));
-            leaves.position.set(x, 5, z);
-            leaves.castShadow = true;
-            scene.add(leaves);
+        function onKeyUp(e) {
+            keys[e.code] = false;
         }
 
-        function onMouseMove(e) {
-            if(!gameActive) return;
-            // Horizontal rotation (Player)
-            player.rotation.y -= e.movementX * MOUSE_SENSITIVITY;
-            
-            // Vertical rotation (Camera Pivot)
-            cameraPivot.rotation.x -= e.movementY * MOUSE_SENSITIVITY;
-            // Clamp Look Up/Down
-            cameraPivot.rotation.x = Math.max(-1.2, Math.min(1.2, cameraPivot.rotation.x));
-        }
-
-        function onKeyDownSpecial(e) {
-            // Inventory Switching
-            if(e.key >= 1 && e.key <= 5) {
-                document.querySelectorAll('.slot').forEach(el => el.classList.remove('active'));
-                document.getElementById('slot'+e.key).classList.add('active');
-                activeSlot = parseInt(e.key);
-            }
-            // Building
-            if(e.code === 'KeyQ') {
-                buildWall();
-            }
-        }
-
-        function onClick() {
-            if(!gameActive) {
+        function onMouseDown(e) {
+            if (document.pointerLockElement !== document.body) {
                 document.body.requestPointerLock();
                 return;
             }
-            shoot();
+
+            if(e.button === 0) { // Left Click
+                if(buildMode && currentBuildType !== 'none') {
+                    placeBuild();
+                } else {
+                    fireWeapon();
+                }
+            }
+            if(e.button === 2) { // Right Click
+                isADS = true;
+            }
         }
 
-        function buildWall() {
-            // Snap to grid
-            const gridSize = 5;
-            // Calculate position in front of player
-            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
-            const buildPos = player.position.clone().add(forward.multiplyScalar(5));
-            
-            // Snap coords
-            const snapX = Math.round(buildPos.x / gridSize) * gridSize;
-            const snapZ = Math.round(buildPos.z / gridSize) * gridSize;
-            
-            const wallGeo = new THREE.BoxGeometry(5, 5, 0.5);
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, map: null }); // Wood color
-            const wall = new THREE.Mesh(wallGeo, wallMat);
-            
-            wall.position.set(snapX, 2.5, snapZ);
-            wall.rotation.y = player.rotation.y; // Roughly face player
-            
-            // Snap rotation to 90 degrees
-            const rotY = Math.round(wall.rotation.y / (Math.PI/2)) * (Math.PI/2);
-            wall.rotation.y = rotY;
-
-            scene.add(wall);
-            walls.push(wall);
+        function onMouseUp(e) {
+            if(e.button === 2) isADS = false;
         }
 
-        function shoot() {
-            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
+        function onMouseMove(e) {
+            if (document.pointerLockElement === document.body) {
+                // Rotate Player Body (Left/Right)
+                player.rotation.y -= e.movementX * 0.002;
+                
+                // Rotate Camera Pivot (Up/Down)
+                cameraPivot.rotation.x -= e.movementY * 0.002;
+                cameraPivot.rotation.x = Math.max(-1.4, Math.min(1.4, cameraPivot.rotation.x));
+            }
+        }
+
+        // --- GAME LOGIC ---
+
+        function setBuildMode(type) {
+            // If pressing same key, toggle off
+            if(currentBuildType === type) {
+                buildMode = false;
+                currentBuildType = 'none';
+                previewMesh.visible = false;
+                updateUIHints();
+                return;
+            }
+
+            buildMode = true;
+            currentBuildType = type;
+            previewMesh.visible = true;
+            updateUIHints();
+
+            // Update Preview Geometry based on type
+            previewMesh.rotation.set(0,0,0); // Reset rotation
+            if(type === 'wall') previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, GRID_SIZE, 0.2);
+            if(type === 'floor') previewMesh.geometry = new THREE.PlaneGeometry(GRID_SIZE, GRID_SIZE);
+            if(type === 'cone') previewMesh.geometry = new THREE.ConeGeometry(GRID_SIZE/1.5, GRID_SIZE/1.5, 4);
+            if(type === 'stair') {
+                previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, 0.2, GRID_SIZE * 1.4);
+            }
+        }
+
+        function updatePreview() {
+            if(!buildMode || !previewMesh.visible) return;
+
+            // Get position in front of player
+            const playerDir = new THREE.Vector3();
+            player.getWorldDirection(playerDir);
+            
+            const targetPos = player.position.clone().add(playerDir.multiplyScalar(GRID_SIZE));
+            
+            // Snap to Grid
+            const snapX = Math.round(targetPos.x / GRID_SIZE) * GRID_SIZE;
+            const snapZ = Math.round(targetPos.z / GRID_SIZE) * GRID_SIZE;
+            const snapY = Math.round(player.position.y / GRID_SIZE) * GRID_SIZE; // Simplified vertical snapping
+
+            // Apply specific logic per type
+            if(currentBuildType === 'wall') {
+                previewMesh.position.set(snapX, snapY + GRID_SIZE/2, snapZ);
+                // Rotate based on player facing direction (0, 90, 180, 270)
+                const rotY = Math.round(player.rotation.y / (Math.PI/2)) * (Math.PI/2);
+                previewMesh.rotation.set(0, rotY, 0);
+            } 
+            else if(currentBuildType === 'floor') {
+                previewMesh.position.set(snapX, snapY + 0.1, snapZ); // Slightly above grid line
+                previewMesh.rotation.x = -Math.PI / 2;
+            }
+            else if(currentBuildType === 'cone') {
+                previewMesh.position.set(snapX, snapY + GRID_SIZE/4, snapZ);
+                previewMesh.rotation.y = Math.PI / 4; // Align square base
+            }
+            else if(currentBuildType === 'stair') {
+                previewMesh.position.set(snapX, snapY + GRID_SIZE/2, snapZ);
+                const rotY = Math.round(player.rotation.y / (Math.PI/2)) * (Math.PI/2);
+                previewMesh.rotation.set(-Math.PI/4, rotY, 0); // 45 degree slope
+            }
+        }
+
+        function placeBuild() {
+            // Clone the preview mesh to create real object
+            const realMat = new THREE.MeshStandardMaterial({ 
+                color: 0xe67e22, // Wood color
+                map: null 
+            });
+            const realBuild = new THREE.Mesh(previewMesh.geometry.clone(), realMat);
+            
+            realBuild.position.copy(previewMesh.position);
+            realBuild.rotation.copy(previewMesh.rotation);
+            realBuild.castShadow = true;
+            realBuild.receiveShadow = true;
+            
+            scene.add(realBuild);
+            objects.push(realBuild); // Add to physics collision list
+        }
+
+        function fireWeapon() {
+            if(isReloading || ammo <= 0) return;
+            
+            ammo--;
+            document.getElementById('ammo-box').innerText = `AMMO: ${ammo}`;
+            
+            // Recoil
+            cameraPivot.rotation.x += 0.05;
+
+            // Create Bullet Trace
+            const bulletGeo = new THREE.SphereGeometry(0.1, 4, 4);
             const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
             const bullet = new THREE.Mesh(bulletGeo, bulletMat);
             
-            // Start at player position
-            bullet.position.copy(player.position);
-            bullet.position.y += 2.5; // Gun height
-
-            // Calculate direction: Raycast from camera center
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            // Start at gun position (approx right side of player)
+            const right = new THREE.Vector3(1,0,0).applyQuaternion(player.quaternion);
+            bullet.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0)).add(right.multiplyScalar(0.5));
             
-            // Get direction from player to the raycasted point (aim point)
-            const aimDir = raycaster.ray.direction.clone();
+            // Shoot forward relative to camera
+            const aimDir = new THREE.Vector3();
+            camera.getWorldDirection(aimDir);
             
-            bullet.userData = { velocity: aimDir.multiplyScalar(2), life: 100 };
             scene.add(bullet);
-            bullets.push(bullet);
+
+            // Animate Bullet
+            const speed = 2;
+            const animateBullet = () => {
+                bullet.position.add(aimDir.clone().multiplyScalar(speed));
+                if(bullet.position.distanceTo(player.position) > 100) {
+                    scene.remove(bullet);
+                } else {
+                    requestAnimationFrame(animateBullet);
+                }
+            };
+            animateBullet();
+        }
+
+        function reload() {
+            if(isReloading) return;
+            isReloading = true;
+            document.getElementById('message-area').style.display = 'block';
+            setTimeout(() => {
+                ammo = 30;
+                document.getElementById('ammo-box').innerText = `AMMO: ${ammo}`;
+                isReloading = false;
+                document.getElementById('message-area').style.display = 'none';
+            }, 2000); // 2 second reload
         }
 
         function updatePhysics() {
+            // Movement
+            const speed = isSprint ? SPRINT_SPEED : WALK_SPEED;
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
+
+            if(keys['KeyW']) player.position.add(forward.clone().multiplyScalar(speed));
+            if(keys['KeyS']) player.position.add(forward.clone().multiplyScalar(-speed));
+            if(keys['KeyA']) player.position.add(right.clone().multiplyScalar(-speed));
+            if(keys['KeyD']) player.position.add(right.clone().multiplyScalar(speed));
+
             // Gravity
             velocityY -= GRAVITY;
             player.position.y += velocityY;
 
-            // Ground Collision
+            // Ground check (Simple floor check)
             if(player.position.y <= 0) {
                 player.position.y = 0;
                 velocityY = 0;
                 onGround = true;
+                canJump = true;
             } else {
                 onGround = false;
             }
 
-            // Movement
-            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
-            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
-            
-            if(keys['KeyW']) player.position.add(forward.clone().multiplyScalar(MOVEMENT_SPEED));
-            if(keys['KeyS']) player.position.add(forward.clone().multiplyScalar(-MOVEMENT_SPEED));
-            if(keys['KeyA']) player.position.add(right.clone().multiplyScalar(-MOVEMENT_SPEED));
-            if(keys['KeyD']) player.position.add(right.clone().multiplyScalar(MOVEMENT_SPEED));
-            
-            // Jump
-            if(keys['Space'] && onGround) {
+            // Jump (No Spam Logic)
+            if(keys['Space'] && onGround && canJump) {
                 velocityY = JUMP_FORCE;
+                canJump = false; // Prevent holding space to bounce
+            }
+            if(!keys['Space'] && onGround) {
+                canJump = true; // Reset when key released
             }
         }
 
-        function updateGameLogic() {
-            // Shrink Zone
-            if(zoneRadius > 0) {
-                zoneRadius -= 0.05;
-                stormWall.scale.set(zoneRadius/150, 1, zoneRadius/150); // Scale initial visual
-                document.getElementById('zone-dist').innerText = Math.floor(zoneRadius);
-            }
+        function updateCamera() {
+            // ADS Logic (Lerp aiming)
+            const targetFOV = isADS ? 40 : 75;
+            const targetX = isADS ? 0.8 : 1.5;
+            const targetZ = isADS ? 1.5 : 3.5;
 
-            // Check Zone Damage
-            const dist = Math.sqrt(player.position.x**2 + player.position.z**2);
-            if(dist > zoneRadius) {
-                health -= 0.1;
-                document.getElementById('health-bar').style.width = health + '%';
-                if(health <= 0) {
-                    alert("Eliminated by Storm!");
-                    location.reload();
-                }
-            }
+            camera.fov += (targetFOV - camera.fov) * 0.2;
+            camera.updateProjectionMatrix();
+            
+            camera.position.x += (targetX - camera.position.x) * 0.2;
+            camera.position.z += (targetZ - camera.position.z) * 0.2;
+        }
 
-            // Update Bullets
-            for(let i = bullets.length - 1; i >= 0; i--) {
-                let b = bullets[i];
-                b.position.add(b.userData.velocity);
-                b.userData.life--;
-                
-                // Simple collision check with ground or walls could go here
-                
-                if(b.userData.life <= 0) {
-                    scene.remove(b);
-                    bullets.splice(i, 1);
-                }
-            }
+        function updateUIHints() {
+            // clear highlights
+            document.querySelectorAll('.key-hint').forEach(el => el.classList.remove('active-build'));
+            
+            if(currentBuildType === 'wall') document.getElementById('hint-y').classList.add('active-build');
+            if(currentBuildType === 'floor') document.getElementById('hint-x').classList.add('active-build');
+            if(currentBuildType === 'stair') document.getElementById('hint-c').classList.add('active-build');
+            if(currentBuildType === 'cone') document.getElementById('hint-v').classList.add('active-build');
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if(gameActive) {
-                updatePhysics();
-                updateGameLogic();
-                renderer.render(scene, camera);
-            }
+            
+            updatePhysics();
+            updatePreview();
+            updateCamera();
+            
+            renderer.render(scene, camera);
         }
 
-        function onResize() {
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        // Initial init
         window.onload = init;
-
     </script>
 </body>
 </html>
