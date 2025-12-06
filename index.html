@@ -76,7 +76,7 @@
         
         <div id="top-info">
             <div id="fps-counter">FPS: 0</div>
-            <div id="storm-info">ZONE: 100m</div>
+            <div id="storm-info">ZONE: 200m</div>
         </div>
 
         <div id="build-menu">
@@ -168,6 +168,22 @@
             setupBuildingPreview();
             setupEventListeners();
             
+            // --- FIX START SCREEN ISSUE HERE ---
+            const startScreen = document.getElementById('start-screen');
+            startScreen.addEventListener('click', () => {
+                // Request pointer lock on the document body
+                document.body.requestPointerLock();
+            });
+
+            // Handle the Pointer Lock success event
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    // Hide the screen ONLY when lock is successful
+                    startScreen.style.display = 'none';
+                }
+            });
+            // ------------------------------------
+
             animate();
         }
 
@@ -732,6 +748,12 @@
             updateFPS(delta);
 
             renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
         window.onload = init;
