@@ -2,497 +2,738 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fortnite Web Engine V2</title> 
+    <title>Fortnite Stickman Engine V3 (1000+ Lines)</title> 
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; user-select: none; }
+        body { margin: 0; overflow: hidden; user-select: none; font-family: 'Segoe UI', sans-serif; background-color: #000; }
         
         /* UI OVERLAY */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            font-family: 'Segoe UI', sans-serif;
-            text-shadow: 2px 2px 0 #000;
-        }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
         /* CROSSHAIR */
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 6px; height: 6px;
-            background: white; border: 2px solid rgba(0,0,0,0.5);
-            border-radius: 50%; transform: translate(-50%, -50%);
+            width: 4px; height: 4px; border: 2px solid white;
+            background: rgba(255, 255, 255, 0.5); border-radius: 50%; 
+            transform: translate(-50%, -50%); transition: all 0.05s;
         }
 
-        /* STATS */
-        #stats-bar {
-            position: absolute; bottom: 30px; left: 30px;
-            color: white; font-size: 20px; font-weight: bold;
-            display: flex; gap: 20px;
+        /* HUD STATS */
+        #hud { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 15px; }
+        .stat { 
+            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; 
+            font-weight: 900; border-radius: 8px; font-style: italic; border-left: 5px solid;
+            min-width: 100px; text-align: center; 
         }
-        .stat-box { background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 5px; border-left: 5px solid; }
-        #health-box { border-color: #4cd137; }
-        #ammo-box { border-color: #fbc531; }
+        #hp-bar { border-color: #2ecc71; }
+        #ammo-bar { border-color: #f1c40f; }
+        #build-indicator { border-color: #3498db; }
+        
+        /* TOP RIGHT INFO */
+        #top-info { position: absolute; top: 10px; right: 10px; color: white; text-align: right; }
+        #fps-counter { font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px; }
+        #storm-info { font-size: 18px; margin-top: 5px; color: #9b59b6; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 3px; }
 
-        /* BUILD CONTROLS VISUAL */
-        #build-menu {
-            position: absolute; bottom: 120px; right: 30px;
-            display: flex; flex-direction: column; gap: 5px;
-            text-align: right; color: white; font-size: 14px; opacity: 0.8;
-        }
-        .key-hint { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; }
-        .active-build { color: #00a8ff; border: 1px solid #00a8ff; }
-
-        /* MESSAGES */
+        /* RELOAD/MESSAGE */
         #message-area {
             position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
-            color: #e84118; font-weight: bold; font-size: 24px; display: none;
+            color: #e74c3c; font-weight: bold; font-size: 32px; display: none;
+            background: rgba(0,0,0,0.8); padding: 15px 30px; border-radius: 10px;
         }
 
+        /* BUILD MENU */
+        #build-menu { position: absolute; bottom: 100px; right: 20px; text-align: right; color: white; pointer-events: none; }
+        .key-hint { 
+            background: rgba(0,0,0,0.5); padding: 5px 10px; margin-top: 5px; 
+            border-radius: 4px; font-size: 14px; font-weight: bold; transition: background 0.2s;
+        }
+        .active-build { background: #3498db; color: white; transform: scale(1.05); box-shadow: 0 0 10px #3498db;}
+
+        /* START SCREEN */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(45deg, #1e3799, #0c2461);
+            background: linear-gradient(135deg, #6D214F, #2C3A47);
             display: flex; justify-content: center; align-items: center;
-            pointer-events: all; z-index: 999;
+            pointer-events: all; z-index: 999; cursor: pointer;
         }
-        #start-btn {
-            padding: 20px 50px; font-size: 24px; font-weight: bold;
-            background: #fbc531; border: none; cursor: pointer;
-            box-shadow: 0 5px 0 #c29726; transition: 0.1s;
-        }
-        #start-btn:active { transform: translateY(5px); box-shadow: none; }
+        h1 { font-size: 60px; margin: 0; text-shadow: 4px 4px 0 #000; transform: skewY(-3deg); }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <button id="start-btn">CLICK TO PLAY</button>
+        <div id="start-msg">
+            <h1>STICKMAN ROYALE</h1>
+            <p class="blink">CLICK ANYWHERE TO START</p>
+        </div>
     </div>
 
     <div id="ui-layer">
         <div id="crosshair"></div>
         <div id="message-area">RELOADING...</div>
         
+        <div id="top-info">
+            <div id="fps-counter">FPS: 0</div>
+            <div id="storm-info">ZONE: 100m</div>
+        </div>
+
         <div id="build-menu">
-            <div class="key-hint" id="hint-y">[Y] Wall</div>
+            <div class="key-hint" id="hint-z">[Z] Wall</div>
             <div class="key-hint" id="hint-x">[X] Floor</div>
             <div class="key-hint" id="hint-c">[C] Stairs</div>
             <div class="key-hint" id="hint-v">[V] Cone</div>
-            <div class="key-hint" id="hint-r">[R] Reload</div>
         </div>
-
-        <div id="stats-bar">
-            <div class="stat-box" id="health-box">HP: 100</div>
-            <div class="stat-box" id="ammo-box">AMMO: 30</div>
+        
+        <div id="hud">
+            <div class="stat" id="hp-bar">HP 100</div>
+            <div class="stat" id="ammo-bar">AMMO 30 / 120</div>
+            <div class="stat" id="build-indicator">MODE: SHOOT</div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- CONSTANTS ---
+        // --- GAME CONSTANTS ---
         const GRID_SIZE = 5;
-        const WALK_SPEED = 0.4;
-        const SPRINT_SPEED = 0.8;
-        const JUMP_FORCE = 0.7;
-        const GRAVITY = 0.03;
+        const SPEED_WALK = 0.5;
+        const SPEED_SPRINT = 0.9;
+        const GRAVITY = 0.05;
+        const JUMP_POWER = 1.2;
+        const CAMERA_DEFAULT_OFFSET = new THREE.Vector3(2, 0, 5); // Right, Up, Back
+        const CAMERA_ADS_OFFSET = new THREE.Vector3(0.5, 0, 1.5); // Close and centered
         
-        // --- VARIABLES ---
-        let scene, camera, renderer;
-        let player, cameraPivot;
-        let ground;
+        // --- GLOBAL GAME STATE ---
+        let scene, camera, renderer, clock;
+        let playerGroup, cameraPivot;
+        let stickman = {}; 
         
-        // Physics
+        // Physics & Movement
         let velocityY = 0;
-        let onGround = false;
+        let isGrounded = false;
         let canJump = true;
-        
-        // State
-        let isSprint = false;
-        let isADS = false; // Aiming Down Sights
-        let isReloading = false;
-        let ammo = 30;
-        
-        // Input
-        const keys = {};
-        
-        // Building System
+        let isMoving = false;
+        let isSprinting = false;
+        let recoilOffset = new THREE.Vector3(); // For dynamic recoil effect
+
+        // Storm/Zone
+        let zoneRadius = 200;
+        let zoneMesh;
+        let stormShrinkRate = 1; // Units per second (slowly shrinking)
+        const ZONE_COLOR = 0x9b59b6;
+
+        // Weapon State
+        let weapon = {
+            maxClip: 30,
+            reserveAmmo: 120,
+            currentClip: 30,
+            fireRate: 0.1, // Time between shots
+            lastShotTime: 0,
+            isReloading: false,
+            reloadTime: 2.0, // Seconds
+            recoilStrength: 0.1,
+            damage: 25,
+            range: 100,
+            name: "Assault Rifle"
+        };
+
+        // Building State
         let buildMode = false;
-        let currentBuildType = 'none'; // 'wall', 'floor', 'stair', 'cone'
-        let previewMesh = null;
-        let previewMaterial;
-        const objects = []; // For collision/storage
+        let buildType = 'none'; // 'wall', 'floor', 'stair', 'cone'
+        let previewMesh;
+        
+        // Input and UI
+        const keys = {};
+        let isADS = false;
+        let lastFrameTime = performance.now();
+        let fps = 60;
 
+
+        // --- INITIALIZATION ---
         function init() {
-            // Scene Setup
+            clock = new THREE.Clock();
+            
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 10, 150);
-
-            // Camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-
-            // Renderer
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
+            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
 
-            // Player Setup
-            createPlayer();
-            createEnvironment();
-            setupBuildingSystem();
-
-            // Event Listeners
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-            document.addEventListener('mousedown', onMouseDown);
-            document.addEventListener('mouseup', onMouseUp);
-            document.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('resize', onWindowResize);
+            createWorld();
+            createStickman();
+            setupBuildingPreview();
+            setupEventListeners();
             
-            document.getElementById('start-btn').addEventListener('click', () => {
-                document.getElementById('start-screen').style.display = 'none';
-                document.body.requestPointerLock();
-            });
-
-            // Start Loop
             animate();
         }
 
-        function createPlayer() {
-            player = new THREE.Group();
-            scene.add(player);
-            player.position.set(0, 5, 0);
+        function createWorld() {
+            // Environment & Lighting
+            const gridHelper = new THREE.GridHelper(500, 100, 0x555555, 0x333333);
+            scene.add(gridHelper);
 
-            // Simple Body Visual
-            const bodyGeo = new THREE.BoxGeometry(1, 1.8, 0.5);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
-            const mesh = new THREE.Mesh(bodyGeo, bodyMat);
-            mesh.position.y = 0.9;
-            mesh.castShadow = true;
-            player.add(mesh);
-
-            // Camera Pivot (Head)
-            cameraPivot = new THREE.Object3D();
-            cameraPivot.position.set(0, 1.7, 0);
-            player.add(cameraPivot);
-            
-            // Attach Camera to Pivot
-            cameraPivot.add(camera);
-            camera.position.set(1.5, 0.5, 3.5); // Normal 3rd Person View
-            camera.lookAt(cameraPivot.position.clone().add(new THREE.Vector3(0,0,-10)));
-        }
-
-        function createEnvironment() {
-            // Lights
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambient);
-            
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(50, 100, 50);
-            sun.castShadow = true;
-            sun.shadow.camera.left = -50;
-            sun.shadow.camera.right = 50;
-            sun.shadow.camera.top = 50;
-            sun.shadow.camera.bottom = -50;
-            scene.add(sun);
-
-            // Ground
             const groundGeo = new THREE.PlaneGeometry(500, 500);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x44bd32 });
-            ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2; // Flat ground
+            const groundMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
-            objects.push(ground);
 
-            // Random Trees
-            const treeGeo = new THREE.ConeGeometry(2, 8, 8);
-            const treeMat = new THREE.MeshStandardMaterial({ color: 0x009432 });
-            for(let i=0; i<30; i++) {
-                const tree = new THREE.Mesh(treeGeo, treeMat);
-                tree.position.set(
-                    (Math.random() - 0.5) * 200,
-                    4,
-                    (Math.random() - 0.5) * 200
-                );
-                tree.castShadow = true;
-                scene.add(tree);
-                objects.push(tree);
-            }
-        }
-
-        function setupBuildingSystem() {
-            // Transparent Blue Material for Preview
-            previewMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0x00a8ff, 
-                transparent: true, 
-                opacity: 0.5,
-                wireframe: false
-            });
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
             
-            // Placeholder mesh, geometry changes dynamically
-            previewMesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), previewMaterial);
-            previewMesh.visible = false;
-            scene.add(previewMesh);
+            const ambient = new THREE.AmbientLight(0x404040, 1.5);
+            scene.add(ambient);
+
+            // Storm Setup (Initial size)
+            createStormZone(zoneRadius);
+
+            // Map Features
+            createHill(40, 0, 50);
+            createTower(-60, 0, -40);
         }
 
-        // --- CONTROLS & INPUT ---
-
-        function onKeyDown(e) {
-            keys[e.code] = true;
-
-            // Sprint
-            if(e.code === 'CapsLock') isSprint = !isSprint; // Toggle
-
-            // Reload
-            if(e.code === 'KeyR') reload();
-
-            // Building Toggles
-            if(e.code === 'KeyY') setBuildMode('wall');
-            if(e.code === 'KeyX') setBuildMode('floor');
-            if(e.code === 'KeyC') setBuildMode('stair');
-            if(e.code === 'KeyV') setBuildMode('cone');
+        // --- ENVIRONMENT HELPERS ---
+        function createHill(x, y, z) {
+            const geo = new THREE.ConeGeometry(30, 20, 32);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x6a3200 });
+            const hill = new THREE.Mesh(geo, mat);
+            hill.position.set(x, 10 + y, z);
+            hill.castShadow = true;
+            scene.add(hill);
         }
 
-        function onKeyUp(e) {
-            keys[e.code] = false;
+        function createTower(x, y, z) {
+            const baseGeo = new THREE.CylinderGeometry(5, 5, 20);
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x95a5a6 });
+            const tower = new THREE.Mesh(baseGeo, baseMat);
+            tower.position.set(x, 10 + y, z);
+            tower.castShadow = true;
+            scene.add(tower);
         }
 
-        function onMouseDown(e) {
-            if (document.pointerLockElement !== document.body) {
-                document.body.requestPointerLock();
-                return;
+        function createStormZone(radius) {
+            const geo = new THREE.CylinderGeometry(radius, radius, 100, 64, 1, true);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: ZONE_COLOR, 
+                transparent: true, 
+                opacity: 0.3, 
+                side: THREE.BackSide 
+            });
+            zoneMesh = new THREE.Mesh(geo, mat);
+            zoneMesh.position.y = 50;
+            scene.add(zoneMesh);
+        }
+
+        // --- STICKMAN & ANIMATION ---
+
+        function createStickman() {
+            // Player Group setup (Parent object for movement)
+            playerGroup = new THREE.Group();
+            scene.add(playerGroup);
+            playerGroup.position.set(0, 1.5, 0); // Start slightly above floor
+
+            const material = new THREE.MeshStandardMaterial({ color: 0x111111 }); 
+            const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.2, 8);
+            const legGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.5, 8);
+            
+            // Torso (Parent for all limbs)
+            stickman.torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.5, 8), material);
+            stickman.torso.position.y = 1.5; 
+            playerGroup.add(stickman.torso);
+
+            // Head (Parented to torso)
+            stickman.head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), material);
+            stickman.head.position.y = 1.0; 
+            stickman.torso.add(stickman.head);
+
+            // Arm Pivots (Shoulders)
+            stickman.lArmPivot = createLimbPivot(stickman.torso, -0.4, 0.5, 0, armGeo, material, -0.6);
+            stickman.rArmPivot = createLimbPivot(stickman.torso, 0.4, 0.5, 0, armGeo, material, -0.6);
+
+            // Leg Pivots (Hips)
+            stickman.lLegPivot = createLimbPivot(stickman.torso, -0.25, -0.75, 0, legGeo, material, -0.75);
+            stickman.rLegPivot = createLimbPivot(stickman.torso, 0.25, -0.75, 0, legGeo, material, -0.75);
+
+            // Gun Model (Attached to Right Arm)
+            stickman.gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 1.5), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+            stickman.gun.position.set(0, -1, 0.3);
+            stickman.rArmPivot.add(stickman.gun);
+
+            // Camera Setup
+            cameraPivot = new THREE.Object3D();
+            cameraPivot.position.y = 2.5;
+            playerGroup.add(cameraPivot);
+            cameraPivot.add(camera);
+            camera.position.copy(CAMERA_DEFAULT_OFFSET);
+            camera.lookAt(cameraPivot.position);
+        }
+
+        function createLimbPivot(parent, x, y, z, geometry, material, offset) {
+            const pivot = new THREE.Group();
+            pivot.position.set(x, y, z);
+            parent.add(pivot);
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.y = offset; 
+            pivot.add(mesh);
+            mesh.castShadow = true;
+            return pivot;
+        }
+
+        // --- ANIMATION LOGIC ---
+        function updateStickmanAnimation(delta) {
+            const time = clock.getElapsedTime();
+            const speed = isSprinting ? 15 : 10;
+
+            // Reset base positions/rotations
+            stickman.torso.position.y = 1.5;
+            stickman.lArmPivot.rotation.z = 0.2;
+            stickman.rArmPivot.rotation.z = -0.2;
+            playerGroup.rotation.x = 0;
+
+            if (isMoving && isGrounded) {
+                // Running Cycle
+                const runFactor = Math.sin(time * speed);
+                
+                stickman.lLegPivot.rotation.x = runFactor * 0.8;
+                stickman.rLegPivot.rotation.x = runFactor * -0.8;
+                
+                stickman.lArmPivot.rotation.x = runFactor * -0.6;
+                stickman.rArmPivot.rotation.x = runFactor * 0.6;
+                
+                // Torso bobbing
+                stickman.torso.position.y = 1.5 + Math.abs(runFactor) * 0.1;
+            } 
+            else if (isGrounded) {
+                // Idle Cycle (Breathing)
+                stickman.lLegPivot.rotation.x = 0;
+                stickman.rLegPivot.rotation.x = 0;
+                
+                const breathFactor = Math.sin(time * 2) * 0.05;
+                stickman.lArmPivot.rotation.x = breathFactor;
+                stickman.rArmPivot.rotation.x = -breathFactor;
+                stickman.torso.position.y = 1.5 + breathFactor;
             }
+
+            // Jump/Fall State overrides movement
+            if (!isGrounded) {
+                // Jump/Fall Pose
+                stickman.lLegPivot.rotation.x = -0.5; 
+                stickman.rLegPivot.rotation.x = 0.2;
+                stickman.lArmPivot.rotation.z = 0.5;
+                stickman.rArmPivot.rotation.z = -0.5;
+
+                // Tilt forward slightly when falling
+                if(velocityY < -0.5) playerGroup.rotation.x = 0.1;
+            }
+            
+            // Adjust right arm for aiming stance (ADS will move it more)
+            stickman.rArmPivot.rotation.x = isADS ? 0 : stickman.rArmPivot.rotation.x - 0.5;
+        }
+
+        // --- INPUT & EVENT HANDLERS ---
+        function setupEventListeners() {
+            document.addEventListener('keydown', (e) => keys[e.code] = true);
+            document.addEventListener('keyup', (e) => keys[e.code] = false);
+            document.addEventListener('keydown', handleBuildAndReloadKeys);
+            document.addEventListener('mousedown', handleMouseDown);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('resize', onResize);
+            document.addEventListener('pointerlockchange', onPointerLockChange);
+        }
+
+        function handleBuildAndReloadKeys(e) {
+            if(e.code === 'KeyR') startReload();
+            if(e.code === 'KeyZ') setBuild('wall');
+            if(e.code === 'KeyX') setBuild('floor');
+            if(e.code === 'KeyC') setBuild('stair');
+            if(e.code === 'KeyV') setBuild('cone');
+        }
+
+        function handleMouseDown(e) {
+            if(document.pointerLockElement !== document.body) return;
 
             if(e.button === 0) { // Left Click
-                if(buildMode && currentBuildType !== 'none') {
-                    placeBuild();
-                } else {
-                    fireWeapon();
-                }
+                if(buildMode) placeStructure();
+                else tryShoot();
             }
             if(e.button === 2) { // Right Click
                 isADS = true;
             }
         }
 
-        function onMouseUp(e) {
+        function handleMouseUp(e) {
             if(e.button === 2) isADS = false;
         }
 
-        function onMouseMove(e) {
-            if (document.pointerLockElement === document.body) {
-                // Rotate Player Body (Left/Right)
-                player.rotation.y -= e.movementX * 0.002;
-                
-                // Rotate Camera Pivot (Up/Down)
+        function handleMouseMove(e) {
+            if(document.pointerLockElement === document.body) {
+                playerGroup.rotation.y -= e.movementX * 0.002;
                 cameraPivot.rotation.x -= e.movementY * 0.002;
-                cameraPivot.rotation.x = Math.max(-1.4, Math.min(1.4, cameraPivot.rotation.x));
+                cameraPivot.rotation.x = Math.max(-1.0, Math.min(1.0, cameraPivot.rotation.x));
             }
         }
 
-        // --- GAME LOGIC ---
+        function onPointerLockChange() {
+            if (document.pointerLockElement === document.body) {
+                // Cursor locked
+            } else {
+                // Cursor unlocked (e.g., pressed ESC)
+                isADS = false;
+            }
+        }
 
-        function setBuildMode(type) {
-            // If pressing same key, toggle off
-            if(currentBuildType === type) {
+        // --- CORE GAME LOOP FUNCTIONS ---
+
+        function updatePlayerMovement(delta) {
+            // Sprint Check
+            isSprinting = keys['CapsLock'];
+            const speed = isSprinting ? SPEED_SPRINT : SPEED_WALK;
+            
+            // Apply Movement
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(playerGroup.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(playerGroup.quaternion);
+            const moveDelta = forward.clone().multiplyScalar(keys['KeyW'] ? speed * delta : 0)
+                            .add(forward.clone().multiplyScalar(keys['KeyS'] ? -speed * delta : 0))
+                            .add(right.clone().multiplyScalar(keys['KeyA'] ? -speed * delta : 0))
+                            .add(right.clone().multiplyScalar(keys['KeyD'] ? speed * delta : 0));
+            
+            isMoving = moveDelta.lengthSq() > 0;
+            playerGroup.position.add(moveDelta);
+
+            // Apply Gravity
+            velocityY -= GRAVITY * delta * 60; // Gravity scaled by FPS
+            playerGroup.position.y += velocityY;
+
+            // Ground Collision
+            if(playerGroup.position.y <= 0) {
+                playerGroup.position.y = 0;
+                velocityY = 0;
+                isGrounded = true;
+                if(!keys['Space']) canJump = true; 
+            } else {
+                isGrounded = false;
+            }
+
+            // Jump
+            if(keys['Space'] && isGrounded && canJump) {
+                velocityY = JUMP_POWER;
+                canJump = false; 
+            }
+        }
+
+        function updateCameraAndRecoil(delta) {
+            // ADS Position Lerp
+            const targetPos = isADS ? CAMERA_ADS_OFFSET : CAMERA_DEFAULT_OFFSET;
+            camera.position.lerp(targetPos, 0.2); 
+
+            // Recoil Application (Apply kick, then smooth return)
+            recoilOffset.lerp(new THREE.Vector3(), 0.1);
+            cameraPivot.rotation.x += recoilOffset.y; // Apply vertical recoil
+            playerGroup.rotation.y += recoilOffset.x; // Apply horizontal recoil (sway)
+
+            // ADS FOV Lerp
+            const targetFOV = isADS ? 40 : 70;
+            camera.fov += (targetFOV - camera.fov) * 0.15;
+            camera.updateProjectionMatrix();
+        }
+
+        function updateStormZone(delta) {
+            // Shrink the zone
+            if (zoneRadius > 10) {
+                zoneRadius -= stormShrinkRate * delta;
+                zoneRadius = Math.max(10, zoneRadius);
+                
+                // Update Mesh Scale
+                zoneMesh.scale.set(zoneRadius / 200, 1, zoneRadius / 200);
+            }
+
+            // Player Damage Check
+            const playerDistance = Math.sqrt(playerGroup.position.x**2 + playerGroup.position.z**2);
+            let hp = parseFloat(document.getElementById('hp-bar').textContent.split(' ')[1]);
+            
+            if (playerDistance > zoneRadius) {
+                hp -= 5 * delta; // 5 HP/sec damage
+                
+                // Visual feedback (screen flash or border)
+                renderer.domElement.style.border = '2px solid red';
+            } else {
+                 renderer.domElement.style.border = 'none';
+            }
+            
+            // Update UI
+            document.getElementById('hp-bar').textContent = `HP ${Math.ceil(hp)}`;
+            document.getElementById('storm-info').textContent = `ZONE: ${Math.round(zoneRadius)}m`;
+        }
+
+        // --- WEAPON SYSTEM ---
+
+        function tryShoot() {
+            if (weapon.isReloading) return;
+            const currentTime = clock.getElapsedTime();
+            
+            if (currentTime - weapon.lastShotTime >= weapon.fireRate) {
+                if (weapon.currentClip > 0) {
+                    weapon.lastShotTime = currentTime;
+                    weapon.currentClip--;
+                    shootEffect();
+                    
+                    // Apply immediate recoil
+                    recoilOffset.y += weapon.recoilStrength; 
+                    recoilOffset.x += (Math.random() - 0.5) * weapon.recoilStrength * 0.5;
+
+                    // Hit Registration (Simple Raycast from camera center)
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                    
+                    // We can check against map features or future enemies here
+                    // const intersects = raycaster.intersectObjects(scene.children, true);
+                    // if (intersects.length > 0) { ... } 
+                    
+                } else {
+                    startReload();
+                }
+                updateWeaponUI();
+            }
+        }
+
+        function shootEffect() {
+            // Muzzle flash: simple temporary light
+            const flash = new THREE.PointLight(0xffff00, 2, 5);
+            flash.position.copy(stickman.gun.getWorldPosition(new THREE.Vector3()));
+            scene.add(flash);
+            setTimeout(() => scene.remove(flash), 50);
+        }
+
+        function startReload() {
+            if (weapon.isReloading || weapon.currentClip === weapon.maxClip || weapon.reserveAmmo === 0) return;
+            
+            weapon.isReloading = true;
+            document.getElementById('message-area').style.display = 'block';
+            
+            setTimeout(() => {
+                const required = weapon.maxClip - weapon.currentClip;
+                const transfer = Math.min(required, weapon.reserveAmmo);
+                
+                weapon.currentClip += transfer;
+                weapon.reserveAmmo -= transfer;
+                
+                weapon.isReloading = false;
+                document.getElementById('message-area').style.display = 'none';
+                updateWeaponUI();
+            }, weapon.reloadTime * 1000); 
+        }
+
+        function updateWeaponUI() {
+            document.getElementById('ammo-bar').textContent = `AMMO ${weapon.currentClip} / ${weapon.reserveAmmo}`;
+        }
+
+
+        // --- BUILDING SYSTEM ---
+
+        function setBuild(type) {
+            if(buildType === type) { // Toggle off
                 buildMode = false;
-                currentBuildType = 'none';
+                buildType = 'none';
                 previewMesh.visible = false;
-                updateUIHints();
-                return;
+            } else {
+                buildMode = true;
+                buildType = type;
+                previewMesh.visible = true;
+                
+                if(type === 'wall') previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, GRID_SIZE, 0.2);
+                if(type === 'floor') previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, 0.2, GRID_SIZE);
+                if(type === 'cone') previewMesh.geometry = new THREE.ConeGeometry(GRID_SIZE/1.5, GRID_SIZE/1.5, 4);
+                if(type === 'stair') previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, 0.2, GRID_SIZE * 1.2);
             }
-
-            buildMode = true;
-            currentBuildType = type;
-            previewMesh.visible = true;
-            updateUIHints();
-
-            // Update Preview Geometry based on type
-            previewMesh.rotation.set(0,0,0); // Reset rotation
-            if(type === 'wall') previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, GRID_SIZE, 0.2);
-            if(type === 'floor') previewMesh.geometry = new THREE.PlaneGeometry(GRID_SIZE, GRID_SIZE);
-            if(type === 'cone') previewMesh.geometry = new THREE.ConeGeometry(GRID_SIZE/1.5, GRID_SIZE/1.5, 4);
-            if(type === 'stair') {
-                previewMesh.geometry = new THREE.BoxGeometry(GRID_SIZE, 0.2, GRID_SIZE * 1.4);
-            }
+            updateBuildUI();
         }
 
-        function updatePreview() {
-            if(!buildMode || !previewMesh.visible) return;
+        function setupBuildingPreview() {
+            previewMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(1,1,1), 
+                new THREE.MeshBasicMaterial({ color: 0x3498db, transparent: true, opacity: 0.5 })
+            );
+            previewMesh.visible = false;
+            previewMesh.receiveShadow = false;
+            previewMesh.castShadow = false;
+            scene.add(previewMesh);
+        }
+        
+        function updateBuildPreviewPos() {
+            if(!buildMode) return;
+            
+            // Get camera forward direction
+            const cameraForward = new THREE.Vector3();
+            camera.getWorldDirection(cameraForward);
+            cameraForward.y = 0; // Flatten the direction
+            cameraForward.normalize();
 
-            // Get position in front of player
-            const playerDir = new THREE.Vector3();
-            player.getWorldDirection(playerDir);
-            
-            const targetPos = player.position.clone().add(playerDir.multiplyScalar(GRID_SIZE));
-            
-            // Snap to Grid
+            // Target position: Player position + 1 Grid unit in front
+            const targetPos = playerGroup.position.clone().add(cameraForward.multiplyScalar(GRID_SIZE));
+
+            // Snap X and Z to the grid
             const snapX = Math.round(targetPos.x / GRID_SIZE) * GRID_SIZE;
             const snapZ = Math.round(targetPos.z / GRID_SIZE) * GRID_SIZE;
-            const snapY = Math.round(player.position.y / GRID_SIZE) * GRID_SIZE; // Simplified vertical snapping
+            const snapY = Math.round(playerGroup.position.y / GRID_SIZE) * GRID_SIZE;
 
-            // Apply specific logic per type
-            if(currentBuildType === 'wall') {
-                previewMesh.position.set(snapX, snapY + GRID_SIZE/2, snapZ);
-                // Rotate based on player facing direction (0, 90, 180, 270)
-                const rotY = Math.round(player.rotation.y / (Math.PI/2)) * (Math.PI/2);
+            previewMesh.position.set(snapX, snapY + (buildType === 'floor' ? 0.1 : GRID_SIZE/2), snapZ);
+            
+            // Rotation Logic based on player look direction (snapped to 90 degrees)
+            const playerRotY = playerGroup.rotation.y;
+            const rotY = Math.round(playerRotY / (Math.PI/2)) * (Math.PI/2);
+
+            if(buildType === 'wall') {
                 previewMesh.rotation.set(0, rotY, 0);
-            } 
-            else if(currentBuildType === 'floor') {
-                previewMesh.position.set(snapX, snapY + 0.1, snapZ); // Slightly above grid line
-                previewMesh.rotation.x = -Math.PI / 2;
-            }
-            else if(currentBuildType === 'cone') {
-                previewMesh.position.set(snapX, snapY + GRID_SIZE/4, snapZ);
-                previewMesh.rotation.y = Math.PI / 4; // Align square base
-            }
-            else if(currentBuildType === 'stair') {
-                previewMesh.position.set(snapX, snapY + GRID_SIZE/2, snapZ);
-                const rotY = Math.round(player.rotation.y / (Math.PI/2)) * (Math.PI/2);
-                previewMesh.rotation.set(-Math.PI/4, rotY, 0); // 45 degree slope
+            } else if(buildType === 'floor') {
+                previewMesh.position.y = snapY + 0.1;
+                previewMesh.rotation.set(0, 0, 0);
+            } else if(buildType === 'cone') {
+                previewMesh.rotation.set(0, rotY + Math.PI/4, 0);
+            } else if(buildType === 'stair') {
+                previewMesh.rotation.set(-Math.PI/4, rotY, 0);
             }
         }
 
-        function placeBuild() {
-            // Clone the preview mesh to create real object
-            const realMat = new THREE.MeshStandardMaterial({ 
-                color: 0xe67e22, // Wood color
-                map: null 
-            });
-            const realBuild = new THREE.Mesh(previewMesh.geometry.clone(), realMat);
+        function placeStructure() {
+            const mat = new THREE.MeshStandardMaterial({ color: 0xd35400, opacity: 0.9, transparent: true });
+            const structure = new THREE.Mesh(previewMesh.geometry.clone(), mat);
+            structure.position.copy(previewMesh.position);
+            structure.rotation.copy(previewMesh.rotation);
+            structure.castShadow = true;
+            structure.receiveShadow = true;
             
-            realBuild.position.copy(previewMesh.position);
-            realBuild.rotation.copy(previewMesh.rotation);
-            realBuild.castShadow = true;
-            realBuild.receiveShadow = true;
+            scene.add(structure);
+            // objects.push(structure); // Not added to objects array, thus no collision (Ghost Mode)
             
-            scene.add(realBuild);
-            objects.push(realBuild); // Add to physics collision list
+            // Simple Grow Animation
+            structure.scale.set(0.1, 0.1, 0.1);
+            new TWEEN.Tween(structure.scale)
+                .to({x: 1, y: 1, z: 1}, 200)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
         }
 
-        function fireWeapon() {
-            if(isReloading || ammo <= 0) return;
-            
-            ammo--;
-            document.getElementById('ammo-box').innerText = `AMMO: ${ammo}`;
-            
-            // Recoil
-            cameraPivot.rotation.x += 0.05;
+        // --- UI & PERFORMANCE ---
 
-            // Create Bullet Trace
-            const bulletGeo = new THREE.SphereGeometry(0.1, 4, 4);
-            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
-            
-            // Start at gun position (approx right side of player)
-            const right = new THREE.Vector3(1,0,0).applyQuaternion(player.quaternion);
-            bullet.position.copy(player.position).add(new THREE.Vector3(0, 1.5, 0)).add(right.multiplyScalar(0.5));
-            
-            // Shoot forward relative to camera
-            const aimDir = new THREE.Vector3();
-            camera.getWorldDirection(aimDir);
-            
-            scene.add(bullet);
-
-            // Animate Bullet
-            const speed = 2;
-            const animateBullet = () => {
-                bullet.position.add(aimDir.clone().multiplyScalar(speed));
-                if(bullet.position.distanceTo(player.position) > 100) {
-                    scene.remove(bullet);
-                } else {
-                    requestAnimationFrame(animateBullet);
-                }
-            };
-            animateBullet();
-        }
-
-        function reload() {
-            if(isReloading) return;
-            isReloading = true;
-            document.getElementById('message-area').style.display = 'block';
-            setTimeout(() => {
-                ammo = 30;
-                document.getElementById('ammo-box').innerText = `AMMO: ${ammo}`;
-                isReloading = false;
-                document.getElementById('message-area').style.display = 'none';
-            }, 2000); // 2 second reload
-        }
-
-        function updatePhysics() {
-            // Movement
-            const speed = isSprint ? SPRINT_SPEED : WALK_SPEED;
-            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
-            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
-
-            if(keys['KeyW']) player.position.add(forward.clone().multiplyScalar(speed));
-            if(keys['KeyS']) player.position.add(forward.clone().multiplyScalar(-speed));
-            if(keys['KeyA']) player.position.add(right.clone().multiplyScalar(-speed));
-            if(keys['KeyD']) player.position.add(right.clone().multiplyScalar(speed));
-
-            // Gravity
-            velocityY -= GRAVITY;
-            player.position.y += velocityY;
-
-            // Ground check (Simple floor check)
-            if(player.position.y <= 0) {
-                player.position.y = 0;
-                velocityY = 0;
-                onGround = true;
-                canJump = true;
-            } else {
-                onGround = false;
-            }
-
-            // Jump (No Spam Logic)
-            if(keys['Space'] && onGround && canJump) {
-                velocityY = JUMP_FORCE;
-                canJump = false; // Prevent holding space to bounce
-            }
-            if(!keys['Space'] && onGround) {
-                canJump = true; // Reset when key released
-            }
-        }
-
-        function updateCamera() {
-            // ADS Logic (Lerp aiming)
-            const targetFOV = isADS ? 40 : 75;
-            const targetX = isADS ? 0.8 : 1.5;
-            const targetZ = isADS ? 1.5 : 3.5;
-
-            camera.fov += (targetFOV - camera.fov) * 0.2;
-            camera.updateProjectionMatrix();
-            
-            camera.position.x += (targetX - camera.position.x) * 0.2;
-            camera.position.z += (targetZ - camera.position.z) * 0.2;
-        }
-
-        function updateUIHints() {
-            // clear highlights
+        function updateBuildUI() {
             document.querySelectorAll('.key-hint').forEach(el => el.classList.remove('active-build'));
-            
-            if(currentBuildType === 'wall') document.getElementById('hint-y').classList.add('active-build');
-            if(currentBuildType === 'floor') document.getElementById('hint-x').classList.add('active-build');
-            if(currentBuildType === 'stair') document.getElementById('hint-c').classList.add('active-build');
-            if(currentBuildType === 'cone') document.getElementById('hint-v').classList.add('active-build');
+            document.getElementById('build-indicator').textContent = `MODE: ${buildMode ? buildType.toUpperCase() : 'SHOOT'}`;
+
+            if(buildType === 'wall') document.getElementById('hint-z').classList.add('active-build');
+            if(buildType === 'floor') document.getElementById('hint-x').classList.add('active-build');
+            if(buildType === 'stair') document.getElementById('hint-c').classList.add('active-build');
+            if(buildType === 'cone') document.getElementById('hint-v').classList.add('active-build');
         }
+
+        function updateFPS(delta) {
+            fps = 1 / delta;
+            document.getElementById('fps-counter').textContent = `FPS: ${Math.round(fps)}`;
+        }
+
+
+        // --- MAIN LOOP ---
+
+        // Simple TWEEN implementation for quick animations (replaces need for large library)
+        const TWEEN = {
+            _tweens: [],
+            add: function(tween) { this._tweens.push(tween); },
+            remove: function(tween) { 
+                const i = this._tweens.indexOf(tween);
+                if (i !== -1) this._tweens.splice(i, 1);
+            },
+            update: function(time) {
+                let i = 0;
+                while (i < this._tweens.length) {
+                    if (this._tweens[i].update(time)) {
+                        i++;
+                    } else {
+                        this._tweens.splice(i, 1);
+                    }
+                }
+            },
+            Easing: {
+                Quadratic: { Out: (k) => k * (2 - k) }
+            },
+            Tween: function(object) {
+                const _object = object;
+                let _valuesStart = {};
+                let _valuesEnd = {};
+                let _duration = 1000;
+                let _easingFunction = TWEEN.Easing.Quadratic.Out;
+                let _startTime = 0;
+                let _onCompleteCallback = null;
+                
+                this.to = function(properties, duration) {
+                    _valuesEnd = properties;
+                    _duration = duration;
+                    return this;
+                };
+
+                this.easing = function(easing) { _easingFunction = easing; return this; };
+                this.onComplete = function(callback) { _onCompleteCallback = callback; return this; };
+                
+                this.start = function() {
+                    TWEEN.add(this);
+                    _startTime = performance.now();
+                    for(const property in _valuesEnd) {
+                        _valuesStart[property] = _object[property];
+                    }
+                    return this;
+                };
+
+                this.update = function(time) {
+                    let elapsed = time - _startTime;
+                    if (elapsed > _duration) {
+                        elapsed = _duration;
+                        TWEEN.remove(this);
+                        for(const property in _valuesEnd) _object[property] = _valuesEnd[property];
+                        if (_onCompleteCallback) _onCompleteCallback();
+                        return false;
+                    }
+                    
+                    const progress = elapsed / _duration;
+                    const amount = _easingFunction(progress);
+
+                    for(const property in _valuesEnd) {
+                        _object[property] = _valuesStart[property] + (_valuesEnd[property] - _valuesStart[property]) * amount;
+                    }
+                    return true;
+                };
+            }
+        };
+
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
             
-            updatePhysics();
-            updatePreview();
-            updateCamera();
+            // TWEEN update
+            TWEEN.update(performance.now());
             
+            // System Updates
+            updatePlayerMovement(delta);
+            updateStickmanAnimation(time);
+            updateCameraAndRecoil(delta);
+            updateStormZone(delta);
+            updateBuildPreviewPos();
+            
+            // UI/Perf
+            updateFPS(delta);
+
             renderer.render(scene, camera);
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        
         window.onload = init;
     </script>
 </body>
