@@ -210,17 +210,24 @@
         function init() {
             document.getElementById('play-button').addEventListener('click', startGame);
             
-            // Set up renderer now, even though we won't render the scene yet.
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
+            
+            // Attach input handlers to the document, or sometimes the renderer element is better for mouse.
+            document.addEventListener('keydown', onKeyDown, false);
+            document.addEventListener('keyup', onKeyUp, false);
+            document.addEventListener('click', onDocumentClick, false);
+
+            // CRITICAL FIX: Attach mouse move specifically to the canvas/renderer element 
+            // after it's in the DOM, so Pointer Lock works reliably with camera controls.
+            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
             
             animate();
         }
         
         // --- Game State and Start Logic ---
         function startGame() {
-            // Only create the scene content once
             if (scene) return; 
             
             // Hide Lobby UI
@@ -263,11 +270,23 @@
             createMapFeature(new THREE.Vector3(-30, 7.5, 10), new THREE.Vector3(15, 15, 15), 0x808080); 
             createMapFeature(new THREE.Vector3(5, 2.5, -40), new THREE.Vector3(5, 5, 5), 0x006400); 
 
+            // Request Pointer Lock here to capture input
             renderer.domElement.requestPointerLock();
             gameActive = true;
-            
-            // Re-call resize to ensure renderer size is correct now that it's in the DOM
             onWindowResize(); 
+        }
+
+        // --- Helper for handling initial click and shooting ---
+        function onDocumentClick(event) {
+            // If the game is active, this click triggers the shoot function
+            if (gameActive && document.pointerLockElement) {
+                shoot();
+            } 
+            // If the game is active but pointer lock was lost (e.g., pressed ESC), 
+            // a click should re-lock the pointer
+            else if (gameActive && !document.pointerLockElement) {
+                renderer.domElement.requestPointerLock();
+            }
         }
 
         // --- Humanoid Player Builder ---
@@ -305,19 +324,17 @@
                 handleZoneLogic();
                 handleBullets(delta); 
                 
+                // Camera fix: Ensure camera looks forward/down correctly from its offset position
                 camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
                 
-                // CRITICAL FIX: Only render the scene when gameActive is true
                 renderer.render(scene, camera);
-            } else if (renderer && !gameActive) {
-                // If the game isn't active, we render nothing or a blank screen, 
-                // allowing the lobby CSS overlay to be visible.
-                renderer.render(new THREE.Scene(), new THREE.Camera()); 
             }
         }
 
         // --- Physics Handler (Gravity and Jump) ---
         function handlePhysics(delta) {
+            // This entire block only runs if gameActive is true (checked in animate())
+            
             // 1. Apply Gravity
             velocityY += gravity;
             
@@ -326,12 +343,12 @@
 
             // 3. Ground Check
             if (player.position.y <= groundY) {
-                player.position.y = groundY; // Snap to ground
-                velocityY = 0; // Stop falling
+                player.position.y = groundY; 
+                velocityY = 0; 
                 
                 // Handle jump initiation when on the ground
-                if (keyState[' ']) { // Check for Spacebar
-                    velocityY = jumpPower; // Apply upward velocity
+                if (keyState[' ']) { 
+                    velocityY = jumpPower; 
                     keyState[' '] = false; // Consume the jump press
                 }
             }
@@ -340,7 +357,8 @@
 
         // --- Shooting Logic ---
         function shoot() {
-            if (!gameActive) return;
+            // Check Pointer Lock status before shooting (CRITICAL)
+            if (!gameActive || !document.pointerLockElement) return;
 
             const shootRaycaster = new THREE.Raycaster();
             shootRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera); 
@@ -381,7 +399,10 @@
 
         // --- Game Logic Functions ---
         function handlePlayerMovement(delta) {
-            if (!gameActive) return;
+            // This entire block only runs if gameActive is true (checked in animate())
+            // Check Pointer Lock status for movement (CRITICAL)
+            if (!document.pointerLockElement) return;
+
             const distance = playerSpeed * delta * 60; 
 
             const forward = new THREE.Vector3(0, 0, 1);
@@ -509,14 +530,18 @@
             keyState[event.key.toLowerCase()] = false;
         }
 
+        // Mouse movement handler is now attached to renderer.domElement
         function onMouseMove(event) {
+            // CRITICAL FIX: Ensure pointer is locked
             if (!gameActive || document.pointerLockElement !== renderer.domElement) return;
 
             const movementX = event.movementX || 0;
             const movementY = event.movementY || 0;
 
+            // Yaw (Left/Right)
             player.rotation.y -= movementX * 0.002;
             
+            // Pitch (Up/Down)
             cameraPitch.rotation.x -= movementY * 0.002;
             
             const maxPitch = Math.PI / 4; 
