@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fortnite Stickman Engine V3 (1000+ Lines)</title> 
+    <title>Fortnite Stickman Engine V4 (Alignment & Sprint)</title> 
     <style>
         body { margin: 0; overflow: hidden; user-select: none; font-family: 'Segoe UI', sans-serif; background-color: #000; }
         
@@ -97,12 +97,13 @@
     <script>
         // --- GAME CONSTANTS ---
         const GRID_SIZE = 5;
-        const SPEED_WALK = 0.5;
-        const SPEED_SPRINT = 0.9;
+        // INCREASED SPEED_WALK from 0.5 to 0.7 for faster base movement
+        const SPEED_WALK = 0.7; 
+        const SPEED_SPRINT = 1.3; // Increased sprint speed
         const GRAVITY = 0.05;
         const JUMP_POWER = 1.2;
-        const CAMERA_DEFAULT_OFFSET = new THREE.Vector3(2, 0, 5); // Right, Up, Back
-        const CAMERA_ADS_OFFSET = new THREE.Vector3(0.5, 0, 1.5); // Close and centered
+        const CAMERA_DEFAULT_OFFSET = new THREE.Vector3(2, 0, 5); 
+        const CAMERA_ADS_OFFSET = new THREE.Vector3(0.5, 0, 1.5); 
         
         // --- GLOBAL GAME STATE ---
         let scene, camera, renderer, clock;
@@ -115,12 +116,12 @@
         let canJump = true;
         let isMoving = false;
         let isSprinting = false;
-        let recoilOffset = new THREE.Vector3(); // For dynamic recoil effect
+        let recoilOffset = new THREE.Vector3(); 
 
         // Storm/Zone
         let zoneRadius = 200;
         let zoneMesh;
-        let stormShrinkRate = 1; // Units per second (slowly shrinking)
+        let stormShrinkRate = 1; 
         const ZONE_COLOR = 0x9b59b6;
 
         // Weapon State
@@ -128,10 +129,10 @@
             maxClip: 30,
             reserveAmmo: 120,
             currentClip: 30,
-            fireRate: 0.1, // Time between shots
+            fireRate: 0.1, 
             lastShotTime: 0,
             isReloading: false,
-            reloadTime: 2.0, // Seconds
+            reloadTime: 2.0, 
             recoilStrength: 0.1,
             damage: 25,
             range: 100,
@@ -140,8 +141,9 @@
 
         // Building State
         let buildMode = false;
-        let buildType = 'none'; // 'wall', 'floor', 'stair', 'cone'
+        let buildType = 'none'; 
         let previewMesh;
+        let placedStructures = new Map(); // Used to track positions and prevent overlap
         
         // Input and UI
         const keys = {};
@@ -168,17 +170,14 @@
             setupBuildingPreview();
             setupEventListeners();
             
-            // --- FIX START SCREEN ISSUE HERE ---
+            // --- FIX START SCREEN ISSUE ---
             const startScreen = document.getElementById('start-screen');
             startScreen.addEventListener('click', () => {
-                // Request pointer lock on the document body
                 document.body.requestPointerLock();
             });
 
-            // Handle the Pointer Lock success event
             document.addEventListener('pointerlockchange', () => {
                 if (document.pointerLockElement === document.body) {
-                    // Hide the screen ONLY when lock is successful
                     startScreen.style.display = 'none';
                 }
             });
@@ -411,8 +410,8 @@
         // --- CORE GAME LOOP FUNCTIONS ---
 
         function updatePlayerMovement(delta) {
-            // Sprint Check
-            isSprinting = keys['CapsLock'];
+            // FIX: Use SHIFT for sprint
+            isSprinting = keys['ShiftLeft'] || keys['ShiftRight']; 
             const speed = isSprinting ? SPEED_SPRINT : SPEED_WALK;
             
             // Apply Movement
@@ -427,7 +426,7 @@
             playerGroup.position.add(moveDelta);
 
             // Apply Gravity
-            velocityY -= GRAVITY * delta * 60; // Gravity scaled by FPS
+            velocityY -= GRAVITY * delta * 60; 
             playerGroup.position.y += velocityY;
 
             // Ground Collision
@@ -454,8 +453,8 @@
 
             // Recoil Application (Apply kick, then smooth return)
             recoilOffset.lerp(new THREE.Vector3(), 0.1);
-            cameraPivot.rotation.x += recoilOffset.y; // Apply vertical recoil
-            playerGroup.rotation.y += recoilOffset.x; // Apply horizontal recoil (sway)
+            cameraPivot.rotation.x += recoilOffset.y; 
+            playerGroup.rotation.y += recoilOffset.x; 
 
             // ADS FOV Lerp
             const targetFOV = isADS ? 40 : 70;
@@ -478,9 +477,8 @@
             let hp = parseFloat(document.getElementById('hp-bar').textContent.split(' ')[1]);
             
             if (playerDistance > zoneRadius) {
-                hp -= 5 * delta; // 5 HP/sec damage
+                hp -= 5 * delta; 
                 
-                // Visual feedback (screen flash or border)
                 renderer.domElement.style.border = '2px solid red';
             } else {
                  renderer.domElement.style.border = 'none';
@@ -503,18 +501,12 @@
                     weapon.currentClip--;
                     shootEffect();
                     
-                    // Apply immediate recoil
                     recoilOffset.y += weapon.recoilStrength; 
                     recoilOffset.x += (Math.random() - 0.5) * weapon.recoilStrength * 0.5;
-
-                    // Hit Registration (Simple Raycast from camera center)
+                    
                     const raycaster = new THREE.Raycaster();
                     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                    
-                    // We can check against map features or future enemies here
-                    // const intersects = raycaster.intersectObjects(scene.children, true);
-                    // if (intersects.length > 0) { ... } 
-                    
+                                        
                 } else {
                     startReload();
                 }
@@ -585,23 +577,40 @@
             scene.add(previewMesh);
         }
         
-        function updateBuildPreviewPos() {
-            if(!buildMode) return;
-            
-            // Get camera forward direction
+        // Helper function to get the snapped position and key
+        function getSnappedPositionAndKey() {
             const cameraForward = new THREE.Vector3();
             camera.getWorldDirection(cameraForward);
-            cameraForward.y = 0; // Flatten the direction
+            cameraForward.y = 0; 
             cameraForward.normalize();
 
-            // Target position: Player position + 1 Grid unit in front
             const targetPos = playerGroup.position.clone().add(cameraForward.multiplyScalar(GRID_SIZE));
 
-            // Snap X and Z to the grid
             const snapX = Math.round(targetPos.x / GRID_SIZE) * GRID_SIZE;
             const snapZ = Math.round(targetPos.z / GRID_SIZE) * GRID_SIZE;
             const snapY = Math.round(playerGroup.position.y / GRID_SIZE) * GRID_SIZE;
+            
+            const position = new THREE.Vector3(snapX, snapY, snapZ);
+            
+            // Calculate a unique key for the position (X/GRID_SIZE, Y/GRID_SIZE, Z/GRID_SIZE)
+            const key = `${snapX}:${snapY}:${snapZ}`;
 
+            return { position, key };
+        }
+
+        function updateBuildPreviewPos() {
+            if(!buildMode) return;
+
+            const { position, key } = getSnappedPositionAndKey();
+            const snapX = position.x;
+            const snapY = position.y;
+            const snapZ = position.z;
+
+            // Check if position is occupied and change preview color to red if so
+            const isOccupied = placedStructures.has(key);
+            previewMesh.material.color.set(isOccupied ? 0xe74c3c : 0x3498db);
+            
+            // Set vertical position based on structure type
             previewMesh.position.set(snapX, snapY + (buildType === 'floor' ? 0.1 : GRID_SIZE/2), snapZ);
             
             // Rotation Logic based on player look direction (snapped to 90 degrees)
@@ -621,6 +630,14 @@
         }
 
         function placeStructure() {
+            const { position, key } = getSnappedPositionAndKey();
+
+            // FIX: Check if the space is already occupied before placing
+            if (placedStructures.has(key)) {
+                // Flash red or play a sound for failed placement
+                return; 
+            }
+
             const mat = new THREE.MeshStandardMaterial({ color: 0xd35400, opacity: 0.9, transparent: true });
             const structure = new THREE.Mesh(previewMesh.geometry.clone(), mat);
             structure.position.copy(previewMesh.position);
@@ -629,7 +646,9 @@
             structure.receiveShadow = true;
             
             scene.add(structure);
-            // objects.push(structure); // Not added to objects array, thus no collision (Ghost Mode)
+            
+            // Record the placement
+            placedStructures.set(key, structure);
             
             // Simple Grow Animation
             structure.scale.set(0.1, 0.1, 0.1);
