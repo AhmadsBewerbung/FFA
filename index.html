@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FFA Battle Royale Game</title> 
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-ui">
+        <div id="health-bar">Health: <span id="health-value">100</span></div>
+        <div id="inventory">
+            <h3>Inventory (Keys 1-5)</h3>
+            <div class="slot" data-key="1">1. Empty</div>
+            <div class="slot" data-key="2">2. Empty</div>
+            <div class="slot" data-key="3">3. Empty</div>
+            <div class="slot" data-key="4">4. Empty</div>
+            <div class="slot" data-key="5">5. Empty</div>
+        </div>
+        <div id="zone-info">Zone Size: <span id="zone-size">100</span></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="./script.js"></script>
+</body>
+</html>
