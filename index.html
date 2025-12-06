@@ -15,7 +15,7 @@
             display: block;
         }
         
-        /* New Lobby Screen Styles - Z-index ensures it's on top */
+        /* Lobby Screen Styles */
         #lobby-screen {
             position: absolute;
             top: 0;
@@ -188,20 +188,20 @@
         const keyState = {};
         const player = new THREE.Object3D(); 
         const cameraPitch = new THREE.Object3D(); 
-        player.position.set(0, 1.7, 10); // Start player slightly above ground
+        player.position.set(0, 1.7, 10); 
 
-        // NEW: Physics Variables
-        let velocityY = 0; // Vertical speed for jumping and gravity
-        const gravity = -9.8 * 0.02; // Simple gravity factor
-        const jumpPower = 0.6; // How high the player jumps
-        const groundY = 0; // Assuming the ground plane is at Y=0
+        // Physics Variables
+        let velocityY = 0; 
+        const gravity = -9.8 * 0.02; 
+        const jumpPower = 0.6; 
+        const groundY = 0; 
         
         // Third Person Camera Constants - Left-Side View
         const TP_CAMERA_DISTANCE = 6;
         const TP_CAMERA_HEIGHT = 4;
         const TP_CAMERA_LATERAL = -2.5; 
         
-        // --- Shooting Variables ---
+        // Shooting Variables
         const bulletSpeed = 2.5;
         const activeBullets = [];
         let gameActive = false; 
@@ -209,14 +209,23 @@
         // --- Initialization Function ---
         function init() {
             document.getElementById('play-button').addEventListener('click', startGame);
+            
+            // Set up renderer now, even though we won't render the scene yet.
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
             animate();
         }
         
         // --- Game State and Start Logic ---
         function startGame() {
+            // Only create the scene content once
             if (scene) return; 
             
+            // Hide Lobby UI
             document.getElementById('lobby-screen').style.display = 'none';
+            // Show Game UI
             document.getElementById('game-ui').style.display = 'block';
             document.getElementById('crosshair').style.display = 'block';
 
@@ -232,10 +241,6 @@
             scene.add(player);
 
             createHumanoidPlayer(player);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
 
             // Lighting
             const ambientLight = new THREE.AmbientLight(0x404040, 3);
@@ -260,6 +265,9 @@
 
             renderer.domElement.requestPointerLock();
             gameActive = true;
+            
+            // Re-call resize to ensure renderer size is correct now that it's in the DOM
+            onWindowResize(); 
         }
 
         // --- Humanoid Player Builder ---
@@ -289,23 +297,26 @@
         // --- Main Game Loop ---
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-
+            
             if (gameActive && scene && renderer) {
-                handlePhysics(delta); // NEW: Handle gravity and velocity
+                const delta = clock.getDelta();
+                handlePhysics(delta); 
                 handlePlayerMovement(delta);
                 handleZoneLogic();
                 handleBullets(delta); 
                 
                 camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
                 
+                // CRITICAL FIX: Only render the scene when gameActive is true
                 renderer.render(scene, camera);
-            } else if (renderer) {
-                 renderer.render(scene, camera);
+            } else if (renderer && !gameActive) {
+                // If the game isn't active, we render nothing or a blank screen, 
+                // allowing the lobby CSS overlay to be visible.
+                renderer.render(new THREE.Scene(), new THREE.Camera()); 
             }
         }
 
-        // --- NEW: Physics Handler (Gravity and Jump) ---
+        // --- Physics Handler (Gravity and Jump) ---
         function handlePhysics(delta) {
             // 1. Apply Gravity
             velocityY += gravity;
@@ -397,9 +408,6 @@
                 player.position.addScaledVector(right, distance);
             }
             
-            // Note: Horizontal movement is now applied, but player.position.y is handled by handlePhysics()
-            // The ground check inside handlePhysics handles the Y-snapping, fixing the "bugged" feeling on horizontal movement.
-
             const maxBound = 145; 
             player.position.x = Math.max(-maxBound, Math.min(maxBound, player.position.x));
             player.position.z = Math.max(-maxBound, Math.min(maxBound, player.position.z));
@@ -429,7 +437,7 @@
         }
 
 
-        // --- UI Update Functions and Helpers (Unchanged) ---
+        // --- UI Update Functions and Helpers ---
         function updateInventoryUI() {
             const slots = document.querySelectorAll('.slot');
             slots.forEach((slot, index) => {
@@ -485,7 +493,6 @@
             const key = event.key.toLowerCase();
             keyState[key] = true; 
             
-            // Check for jump and process it in physics handler
             if (key === ' ') {
                 keyState[' '] = true;
             }
@@ -519,4 +526,4 @@
         window.onload = init;
     </script>
 </body>
-</html>1
+</html>
