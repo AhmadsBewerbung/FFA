@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>FFA Battle Royale Game</title> 
+    <title>FFA Clone Battle Royale</title> 
     
     <style>
         body {
@@ -15,42 +15,52 @@
             display: block;
         }
         
-        /* New Lobby Screen Styles */
+        /* New Lobby Screen Styles - Z-index ensures it's on top */
         #lobby-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: white;
-            font-family: sans-serif;
-            z-index: 100; /* Ensure it's on top */
+            font-family: 'Arial', sans-serif;
+            z-index: 100;
         }
 
         #lobby-screen h1 {
-            font-size: 4em;
-            margin-bottom: 20px;
-            color: #ff9900;
+            font-size: 5em;
+            margin-bottom: 5px;
+            color: #ffde00;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        #lobby-screen p {
+            font-size: 1.2em;
+            margin-bottom: 40px;
         }
 
         #play-button {
-            padding: 15px 40px;
-            font-size: 1.5em;
+            padding: 15px 60px;
+            font-size: 1.8em;
             cursor: pointer;
-            background-color: #00aa00;
-            border: none;
-            border-radius: 8px;
+            background-color: #00bfff;
+            border: 3px solid #ffffff;
+            border-radius: 50px;
             color: white;
-            transition: background-color 0.2s;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
 
         #play-button:hover {
-            background-color: #008800;
+            background-color: #0099e6;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
         }
 
         /* Crosshair Style */
@@ -65,7 +75,7 @@
             transform: translate(-50%, -50%); 
             pointer-events: none; 
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            display: none; /* Hidden until game starts */
+            display: none; 
         }
 
         /* --- UI Overlays --- */
@@ -78,7 +88,7 @@
             color: white;
             font-family: sans-serif;
             padding: 10px;
-            display: none; /* Hidden until game starts */
+            display: none; 
         }
 
         #health-bar, #zone-info {
@@ -132,7 +142,7 @@
     <div id="lobby-screen">
         <h1>FFA Clone Battle Royale</h1>
         <p>A simple Third-Person Shooter by AhmadsBewerbung.</p>
-        <button id="play-button">Start Game</button>
+        <button id="play-button">Start Battle</button>
     </div>
 
     <div id="crosshair"></div>
@@ -177,9 +187,15 @@
         const playerSpeed = 0.3;
         const keyState = {};
         const player = new THREE.Object3D(); 
-        const cameraPitch = new THREE.Object3D(); // NEW: Object to handle up/down look
-        player.position.set(0, 0, 10); 
+        const cameraPitch = new THREE.Object3D(); 
+        player.position.set(0, 1.7, 10); // Start player slightly above ground
 
+        // NEW: Physics Variables
+        let velocityY = 0; // Vertical speed for jumping and gravity
+        const gravity = -9.8 * 0.02; // Simple gravity factor
+        const jumpPower = 0.6; // How high the player jumps
+        const groundY = 0; // Assuming the ground plane is at Y=0
+        
         // Third Person Camera Constants - Left-Side View
         const TP_CAMERA_DISTANCE = 6;
         const TP_CAMERA_HEIGHT = 4;
@@ -188,107 +204,141 @@
         // --- Shooting Variables ---
         const bulletSpeed = 2.5;
         const activeBullets = [];
-        let gameActive = false; // NEW: State variable
+        let gameActive = false; 
 
         // --- Initialization Function ---
         function init() {
-            // 1. Scene and Renderer Setup
+            document.getElementById('play-button').addEventListener('click', startGame);
+            animate();
+        }
+        
+        // --- Game State and Start Logic ---
+        function startGame() {
+            if (scene) return; 
+            
+            document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('crosshair').style.display = 'block';
+
+            // --- 3D Scene Setup ---
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb); 
+            scene.background = new THREE.Color(0x5ad4e4);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(TP_CAMERA_LATERAL, TP_CAMERA_HEIGHT, TP_CAMERA_DISTANCE);
             
-            // NEW: Camera is attached to the pitch object, which is attached to the player
             cameraPitch.add(camera);
             player.add(cameraPitch);
             scene.add(player);
 
-            // Player body mesh
-            const playerBodyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.7, 16);
-            const playerBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x00aa00 }); 
-            const playerBody = new THREE.Mesh(playerBodyGeometry, playerBodyMaterial);
-            playerBody.position.y = 0.85; 
-            player.add(playerBody); 
+            createHumanoidPlayer(player);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // 2. Lighting and Map Setup (same as before)
-            const ambientLight = new THREE.AmbientLight(0x606060);
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 3);
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(1, 1, 0.5).normalize();
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
             scene.add(directionalLight);
 
+            // Ground
             const groundGeometry = new THREE.PlaneGeometry(300, 300);
-            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 }); 
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x4caf50 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2; 
             scene.add(ground);
 
+            // Map Features
             createMapFeature(new THREE.Vector3(20, 5, 20), new THREE.Vector3(10, 10, 10), 0x964b00); 
             createMapFeature(new THREE.Vector3(-30, 7.5, 10), new THREE.Vector3(15, 15, 15), 0x808080); 
             createMapFeature(new THREE.Vector3(5, 2.5, -40), new THREE.Vector3(5, 5, 5), 0x006400); 
 
-            // 3. UI and Event Listeners
-            updateInventoryUI();
-            updateHealthUI();
-            updateZoneUI();
-            window.addEventListener('resize', onWindowResize, false);
-            document.addEventListener('keydown', onKeyDown, false);
-            document.addEventListener('keyup', onKeyUp, false);
-            document.addEventListener('mousemove', onMouseMove, false);
-
-            document.getElementById('play-button').addEventListener('click', startGame);
-
-            // Start loop immediately, but logic only runs when gameActive is true
-            animate();
-        }
-        
-        // --- NEW: Game State and Start Logic ---
-        function startGame() {
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-            document.getElementById('crosshair').style.display = 'block';
             renderer.domElement.requestPointerLock();
             gameActive = true;
         }
 
+        // --- Humanoid Player Builder ---
+        function createHumanoidPlayer(playerContainer) {
+            // Torso (Body)
+            const bodyGeometry = new THREE.BoxGeometry(1, 1.2, 0.6);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); 
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1.4;
+            playerContainer.add(body);
+            
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac }); 
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 2.4;
+            playerContainer.add(head);
+
+            // Legs (combined block for simplicity)
+            const legGeometry = new THREE.BoxGeometry(0.8, 1.4, 0.6);
+            const legMaterial = new THREE.MeshLambertMaterial({ color: 0x00008b }); 
+            const legs = new THREE.Mesh(legGeometry, legMaterial);
+            legs.position.y = 0.7;
+            playerContainer.add(legs);
+        }
 
         // --- Main Game Loop ---
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
 
-            if (gameActive) {
+            if (gameActive && scene && renderer) {
+                handlePhysics(delta); // NEW: Handle gravity and velocity
                 handlePlayerMovement(delta);
                 handleZoneLogic();
                 handleBullets(delta); 
                 
-                // Camera always looks at the player's chest height
                 camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+                
+                renderer.render(scene, camera);
+            } else if (renderer) {
+                 renderer.render(scene, camera);
             }
-            
-            renderer.render(scene, camera);
         }
+
+        // --- NEW: Physics Handler (Gravity and Jump) ---
+        function handlePhysics(delta) {
+            // 1. Apply Gravity
+            velocityY += gravity;
+            
+            // 2. Apply Vertical Movement
+            player.position.y += velocityY * delta * 60; 
+
+            // 3. Ground Check
+            if (player.position.y <= groundY) {
+                player.position.y = groundY; // Snap to ground
+                velocityY = 0; // Stop falling
+                
+                // Handle jump initiation when on the ground
+                if (keyState[' ']) { // Check for Spacebar
+                    velocityY = jumpPower; // Apply upward velocity
+                    keyState[' '] = false; // Consume the jump press
+                }
+            }
+        }
+
 
         // --- Shooting Logic ---
         function shoot() {
             if (!gameActive) return;
 
-            // Get direction from the center of the screen (crosshair) using the camera's view
             const shootRaycaster = new THREE.Raycaster();
             shootRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera); 
             const direction = shootRaycaster.ray.direction.clone();
             
-            // Bullet visual setup
             const bulletGeometry = new THREE.SphereGeometry(0.15, 8, 8);
             const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
             
-            // Spawn bullet from the player's position, aligned with the shot direction
             const spawnHeight = player.position.y + 1.2; 
             bullet.position.copy(player.position).add(direction.clone().multiplyScalar(1));
             bullet.position.y = spawnHeight;
@@ -306,7 +356,6 @@
             for (let i = activeBullets.length - 1; i >= 0; i--) {
                 const bulletData = activeBullets[i];
                 
-                // Move the bullet
                 bulletData.mesh.position.addScaledVector(bulletData.direction, bulletSpeed * delta * 60);
                 
                 bulletData.life--;
@@ -321,15 +370,14 @@
 
         // --- Game Logic Functions ---
         function handlePlayerMovement(delta) {
+            if (!gameActive) return;
             const distance = playerSpeed * delta * 60; 
 
-            // Get player's forward direction based on rotation
             const forward = new THREE.Vector3(0, 0, 1);
             forward.applyQuaternion(player.quaternion);
             forward.y = 0; 
             forward.normalize();
             
-            // Get player's right direction (for strafing)
             const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
             // W - Move Forward
@@ -344,10 +392,13 @@
             if (keyState['a']) {
                 player.position.addScaledVector(right, -distance);
             }
-            // D - Strafe Right (Fixed movement controls)
+            // D - Strafe Right
             if (keyState['d']) {
                 player.position.addScaledVector(right, distance);
             }
+            
+            // Note: Horizontal movement is now applied, but player.position.y is handled by handlePhysics()
+            // The ground check inside handlePhysics handles the Y-snapping, fixing the "bugged" feeling on horizontal movement.
 
             const maxBound = 145; 
             player.position.x = Math.max(-maxBound, Math.min(maxBound, player.position.x));
@@ -355,6 +406,7 @@
         }
 
         function handleZoneLogic() {
+            if (!gameActive) return;
             zoneRadius -= zoneShrinkRate * clock.getDelta();
             zoneRadius = Math.max(10, zoneRadius); 
 
@@ -377,7 +429,7 @@
         }
 
 
-        // --- UI Update Functions ---
+        // --- UI Update Functions and Helpers (Unchanged) ---
         function updateInventoryUI() {
             const slots = document.querySelectorAll('.slot');
             slots.forEach((slot, index) => {
@@ -412,7 +464,6 @@
             }
         }
 
-        // --- Helper and Event Handlers ---
         function createMapFeature(position, size, color) {
             const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
             const material = new THREE.MeshLambertMaterial({ color: color });
@@ -422,14 +473,23 @@
         }
         
         function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
         }
 
         function onKeyDown(event) {
-            keyState[event.key.toLowerCase()] = true; 
+            if (!gameActive) return;
+            const key = event.key.toLowerCase();
+            keyState[key] = true; 
             
+            // Check for jump and process it in physics handler
+            if (key === ' ') {
+                keyState[' '] = true;
+            }
+
             const slotKey = parseInt(event.key);
             if (slotKey >= 1 && slotKey <= 5) {
                 activeSlot = slotKey - 1;
@@ -438,29 +498,25 @@
         }
 
         function onKeyUp(event) {
+            if (!gameActive) return;
             keyState[event.key.toLowerCase()] = false;
         }
 
-        // FIX: Handles Camera Yaw (player rotation) and Pitch (cameraPitch rotation)
         function onMouseMove(event) {
-            if (document.pointerLockElement === renderer.domElement) {
-                const movementX = event.movementX || 0;
-                const movementY = event.movementY || 0;
+            if (!gameActive || document.pointerLockElement !== renderer.domElement) return;
 
-                // 1. Yaw (Left/Right) - Rotates the entire player model
-                player.rotation.y -= movementX * 0.002;
-                
-                // 2. Pitch (Up/Down) - Rotates the cameraPitch object
-                cameraPitch.rotation.x -= movementY * 0.002;
-                
-                // Limit pitch rotation (to prevent flipping over)
-                const maxPitch = Math.PI / 4; // 45 degrees
-                cameraPitch.rotation.x = Math.max(-maxPitch, Math.min(maxPitch, cameraPitch.rotation.x));
-            }
+            const movementX = event.movementX || 0;
+            const movementY = event.movementY || 0;
+
+            player.rotation.y -= movementX * 0.002;
+            
+            cameraPitch.rotation.x -= movementY * 0.002;
+            
+            const maxPitch = Math.PI / 4; 
+            cameraPitch.rotation.x = Math.max(-maxPitch, Math.min(maxPitch, cameraPitch.rotation.x));
         }
 
-        // Start the game!
         window.onload = init;
     </script>
 </body>
-</html>
+</html>1
